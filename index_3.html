@@ -1,0 +1,1463 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<meta name="theme-color" content="#1f5f5b">
+<title>Agenda Clienti</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#f6f4ef; --card:#ffffff; --ink:#1d2321; --muted:#6b736f; --line:#e6e2d9;
+    --accent:#1f5f5b; --accent-soft:#e3eeec; --warn:#b4432f; --warn-soft:#f7e6e2;
+    --amber:#c98a1b; --radius:16px;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;height:100%}
+  body{font-family:Figtree,system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--ink);font-size:16px;line-height:1.4}
+  button,input,select,textarea{font:inherit;color:inherit}
+  button{cursor:pointer;border:0;background:none}
+  .app{max-width:640px;margin:0 auto;min-height:100%;display:flex;flex-direction:column}
+  header{position:sticky;top:0;z-index:5;background:var(--bg);padding:18px 18px 10px;display:flex;align-items:center;gap:10px}
+  header h1{font-size:24px;margin:0;font-weight:700;flex:1;letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .back[hidden]{display:none}
+  .back{width:40px;height:40px;border-radius:12px;background:var(--card);border:1px solid var(--line);display:grid;place-items:center;flex:none}
+  .sync{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px;white-space:nowrap}
+  .sync i{width:8px;height:8px;border-radius:50%;background:#bbb;display:inline-block}
+  .sync.ok i{background:#3a9a6a}.sync.err i{background:var(--warn)}
+  main{flex:1;padding:4px 16px 110px}
+  nav.tabs{position:fixed;bottom:0;left:0;right:0;z-index:10;background:var(--card);border-top:1px solid var(--line);display:flex;justify-content:center;padding-bottom:env(safe-area-inset-bottom)}
+  nav.tabs .in{display:flex;width:100%;max-width:640px}
+  nav.tabs button{flex:1;padding:10px 0 12px;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:12px;font-weight:600;color:var(--muted)}
+  nav.tabs button svg{width:24px;height:24px}
+  nav.tabs button.on{color:var(--accent)}
+  .search{width:100%;padding:12px 14px;border-radius:12px;border:1px solid var(--line);background:var(--card);margin-bottom:12px;outline:none}
+  .search:focus,.field input:focus,.field textarea:focus,.field select:focus,.addrow input:focus{border-color:var(--accent)}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius)}
+  .list{display:flex;flex-direction:column;gap:8px}
+  .client{display:flex;align-items:center;gap:12px;padding:12px 14px;text-align:left;width:100%}
+  .avatar{width:42px;height:42px;border-radius:50%;background:var(--accent-soft);color:var(--accent);display:grid;place-items:center;font-weight:700;flex:none}
+  .client .t{flex:1;min-width:0}
+  .client .n{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .client .s{font-size:13px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .pill{font-size:12px;font-weight:600;background:var(--accent-soft);color:var(--accent);padding:3px 8px;border-radius:99px;flex:none}
+  .fab{position:fixed;right:max(18px,calc(50% - 302px));bottom:84px;z-index:9;width:58px;height:58px;border-radius:18px;background:var(--accent);color:#fff;display:grid;place-items:center;box-shadow:0 6px 18px rgba(31,95,91,.35)}
+  .fab svg{width:28px;height:28px}
+  .empty{text-align:center;color:var(--muted);padding:40px 20px}
+  .empty b{display:block;color:var(--ink);font-size:17px;margin-bottom:4px}
+  .section{margin:18px 0 8px;font-size:13px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;display:flex;align-items:center;justify-content:space-between}
+  .section button{text-transform:none;letter-spacing:0;font-size:14px;color:var(--accent);font-weight:600}
+  .info{padding:14px}
+  .info .row{display:flex;gap:10px;padding:6px 0;font-size:15px}
+  .info .row span:first-child{color:var(--muted);width:78px;flex:none}
+  .info .row span:last-child{word-break:break-word;white-space:pre-wrap}
+  .info a{color:var(--accent)}
+  .actions{display:flex;gap:8px;margin-top:10px}
+  .btn{padding:11px 16px;border-radius:12px;font-weight:600;background:var(--accent);color:#fff}
+  .btn.ghost{background:var(--card);color:var(--ink);border:1px solid var(--line)}
+  .btn.danger{background:var(--warn-soft);color:var(--warn)}
+  .btn.full{width:100%}
+  .addrow{display:flex;gap:8px;margin-bottom:10px}
+  .addrow input{flex:1;min-width:0;padding:12px 14px;border-radius:12px;border:1px solid var(--line);background:var(--card);outline:none}
+  .addrow input.qty{flex:0 0 74px}
+  .addrow button{width:48px;border-radius:12px;background:var(--accent);color:#fff;display:grid;place-items:center;flex:none}
+  .check{display:flex;align-items:center;gap:12px;padding:10px 12px;border-bottom:1px solid var(--line)}
+  .check:last-child{border-bottom:0}
+  .box{width:26px;height:26px;border-radius:8px;border:2px solid #c9c3b6;flex:none;display:grid;place-items:center;color:#fff}
+  .check.done .box{background:var(--accent);border-color:var(--accent)}
+  .check .txt{flex:1;min-width:0;word-break:break-word}
+  .check.done .txt{color:var(--muted);text-decoration:line-through}
+  .check .q{font-size:13px;color:var(--muted);flex:none}
+  .x{width:32px;height:32px;border-radius:10px;color:#a19a8c;display:grid;place-items:center;flex:none}
+  .x:active{background:var(--warn-soft);color:var(--warn)}
+  /* calendar */
+  .calhead{display:flex;align-items:center;justify-content:space-between;padding:12px 8px 6px}
+  .calhead b{font-size:18px;text-transform:capitalize}
+  .calhead button{width:40px;height:40px;border-radius:12px;display:grid;place-items:center}
+  .grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;padding:4px 8px 12px}
+  .dow{text-align:center;font-size:12px;color:var(--muted);font-weight:600;padding:4px 0}
+  .day{aspect-ratio:1/1;border-radius:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-weight:500;position:relative}
+  .day.out{color:#c2bcb0}
+  .day.today{color:var(--accent);font-weight:700}
+  .day.sel{background:var(--accent);color:#fff}
+  .dots{display:flex;gap:2px;height:5px}
+  .dots i{width:5px;height:5px;border-radius:50%;background:var(--amber)}
+  .day.sel .dots i{background:#fff}
+  .ev{display:flex;gap:12px;padding:12px 14px;align-items:flex-start;text-align:left;width:100%}
+  .ev .tm{font-weight:700;color:var(--accent);width:50px;flex:none;font-variant-numeric:tabular-nums}
+  .ev .tt{flex:1;min-width:0}
+  .ev .tt b{font-weight:600;display:block;word-break:break-word}
+  .ev .tt small{color:var(--muted);font-size:13px;display:block;word-break:break-word}
+  .ev .dt{font-size:12px;color:var(--muted)}
+  .chip{display:inline-block;font-size:12px;background:var(--accent-soft);color:var(--accent);padding:2px 8px;border-radius:99px;margin-top:4px;font-weight:600}
+  /* modal */
+  .ov{position:fixed;inset:0;background:rgba(20,25,23,.45);z-index:50;display:none;align-items:flex-end;justify-content:center}
+  .ov.show{display:flex}
+  .sheet{background:var(--bg);width:100%;max-width:640px;border-radius:22px 22px 0 0;padding:18px 18px calc(18px + env(safe-area-inset-bottom));max-height:92vh;overflow:auto;animation:up .2s ease-out}
+  @keyframes up{from{transform:translateY(30px);opacity:.5}to{transform:none;opacity:1}}
+  .sheet h2{margin:0 0 14px;font-size:20px}
+  .field{display:block;margin-bottom:12px}
+  .field span{display:block;font-size:13px;color:var(--muted);font-weight:600;margin-bottom:5px}
+  .field input,.field textarea,.field select{width:100%;padding:12px 14px;border-radius:12px;border:1px solid var(--line);background:var(--card);outline:none}
+  .field textarea{min-height:80px;resize:vertical}
+  .two{display:flex;gap:10px}.two .field{flex:1}
+  .sheet .actions{margin-top:6px}
+  .sheet .actions .btn{flex:1}
+  .photos{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+  .ph{position:relative;aspect-ratio:1/1;border-radius:12px;overflow:hidden;background:var(--line);padding:0}
+  .ph img{width:100%;height:100%;object-fit:cover;display:block}
+  .ph span{position:absolute;left:0;right:0;bottom:0;background:linear-gradient(transparent,rgba(0,0,0,.65));color:#fff;font-size:11px;padding:14px 6px 5px;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .preview{width:100%;max-height:45vh;object-fit:contain;border-radius:12px;background:#000;display:block;margin-bottom:12px}
+  .opt{display:flex;align-items:center;gap:10px;margin:0 0 12px;font-size:15px}
+  .opt input{width:20px;height:20px;accent-color:var(--accent)}
+  .rv{display:flex;align-items:center;gap:10px;padding:9px 12px;border-bottom:1px solid var(--line)}
+  .rv:last-child{border-bottom:0}
+  .rv input[type=checkbox]{width:20px;height:20px;accent-color:var(--accent);flex:none}
+  .rv input[type=text]{flex:1;min-width:0;border:0;background:transparent;padding:4px 0;outline:none}
+  .rv .q{font-size:13px;color:var(--muted);flex:none;max-width:30%;text-align:right}
+  .spin{width:34px;height:34px;border-radius:50%;border:3px solid var(--accent-soft);border-top-color:var(--accent);animation:sp 0.9s linear infinite;margin:18px auto}
+  @keyframes sp{to{transform:rotate(360deg)}}
+  .memo{background:#fdf6e3;border:1px solid #efdfb0;border-radius:var(--radius)}
+  .memo .m{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border-bottom:1px solid #efdfb0}
+  .memo .m:last-child{border-bottom:0}
+  .memo .m .tx{flex:1;min-width:0;white-space:pre-wrap;word-break:break-word}
+  .memo .m small{display:block;color:#9a7a2a;font-size:12px;margin-top:2px}
+  .btn.memo-btn{background:#fdf6e3;color:#7a5a12;border:1px solid #efdfb0}
+  .lock{position:fixed;inset:0;z-index:200;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:24px}
+  .lock.hide{display:none}
+  .lock .box2{width:100%;max-width:360px;text-align:center}
+  .lock .ic{width:64px;height:64px;border-radius:20px;background:var(--accent);color:#fff;display:grid;place-items:center;margin:0 auto 16px}
+  .lock h2{margin:0 0 6px;font-size:22px}
+  .lock p{margin:0 0 18px;color:var(--muted);font-size:15px}
+  .lock input{width:100%;padding:14px 16px;border-radius:14px;border:1px solid var(--line);background:var(--card);outline:none;font-size:18px;text-align:center;margin-bottom:10px}
+  .lock input:focus{border-color:var(--accent)}
+  .lock .err{color:var(--warn);font-size:14px;min-height:20px;margin:0 0 10px}
+  .lock .btn{width:100%;padding:14px}
+  .shake{animation:shk .35s}
+  @keyframes shk{20%,60%{transform:translateX(-8px)}40%,80%{transform:translateX(8px)}}
+  .gear{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;color:var(--muted);flex:none}
+  .when{flex:none;text-align:center;border-radius:12px;padding:6px 9px;min-width:64px;line-height:1.15}
+  .when b{display:block;font-size:14px}
+  .when small{font-size:11px;font-weight:600}
+  .when.g{background:#dcefe2;color:#2f7a4b}
+  .when.y{background:#fbefb9;color:#7a6110}
+  .when.o{background:#fdd9b5;color:#a24a06}
+  .legend{display:flex;gap:12px;font-size:12px;color:var(--muted);margin:-4px 2px 10px;flex-wrap:wrap}
+  .legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:4px;vertical-align:-1px}
+  .fl{display:flex;align-items:center;gap:12px;padding:11px 12px;border-bottom:1px solid var(--line);width:100%;text-align:left}
+  .fl:last-child{border-bottom:0}
+  .fl .fi{width:40px;height:40px;border-radius:10px;display:grid;place-items:center;font-size:11px;font-weight:700;flex:none;background:var(--accent-soft);color:var(--accent)}
+  .fl .fi.pdf{background:#f7e1dd;color:#b4432f}
+  .fl .fn{flex:1;min-width:0}
+  .fl .fn b{display:block;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .fl .fn small{color:var(--muted);font-size:12px}
+  .vh{position:fixed;left:-9999px;top:0;width:1px;height:1px;opacity:0}
+  label.btn{display:block;text-align:center;cursor:pointer}
+  .fbtn{position:relative;overflow:hidden;display:block;text-align:center}
+  .fbtn input[type=file]{position:absolute;inset:0;width:100%;height:100%;opacity:0;font-size:200px;cursor:pointer;z-index:2}
+  .client{cursor:pointer}
+  .client .addr{display:inline-flex;align-items:center;gap:4px;max-width:100%;color:var(--accent);font-size:14px;font-weight:500;text-decoration:none;padding:3px 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .client .addr svg{flex:none}
+  .msgb{width:44px;height:44px;border-radius:14px;background:#25a35a;color:#fff;display:grid;place-items:center;flex:none}
+  .msgb:active{opacity:.8}
+  .toast{position:fixed;left:50%;bottom:150px;transform:translateX(-50%);background:#1d2321;color:#fff;padding:10px 16px;border-radius:12px;font-size:14px;z-index:60;opacity:0;transition:opacity .2s;pointer-events:none}
+  .toast.show{opacity:1}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <button class="back" id="back" hidden aria-label="Indietro"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></button>
+    <h1 id="title">Clienti</h1>
+    <div class="sync" id="sync"><i></i><span>Caricamento…</span></div>
+    <button class="gear" id="gear" aria-label="Impostazioni"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 00.3 1.8l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.7 1.7 0 00-1.8-.3 1.7 1.7 0 00-1 1.5V21a2 2 0 11-4 0v-.1a1.7 1.7 0 00-1.1-1.5 1.7 1.7 0 00-1.8.3l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.7 1.7 0 00.3-1.8 1.7 1.7 0 00-1.5-1H3a2 2 0 110-4h.1a1.7 1.7 0 001.5-1.1 1.7 1.7 0 00-.3-1.8l-.1-.1a2 2 0 112.8-2.8l.1.1a1.7 1.7 0 001.8.3H9a1.7 1.7 0 001-1.5V3a2 2 0 114 0v.1a1.7 1.7 0 001 1.5 1.7 1.7 0 001.8-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.7 1.7 0 00-.3 1.8V9a1.7 1.7 0 001.5 1H21a2 2 0 110 4h-.1a1.7 1.7 0 00-1.5 1z"/></svg></button>
+  </header>
+  <main id="main"></main>
+</div>
+<button class="fab" id="fab" aria-label="Aggiungi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button>
+<nav class="tabs"><div class="in">
+  <button data-tab="clients" class="on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.6 3.4-5.5 6.5-5.5s5.7 1.9 6.5 5.5"/><path d="M16 4.6a3.5 3.5 0 010 6.8M18 14.8c1.9.7 3.1 2.4 3.5 5.2"/></svg>Clienti</button>
+  <button data-tab="shopping"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4h2.5l2.2 11h10.6L20.5 7H7"/><circle cx="9.5" cy="19.5" r="1.4"/><circle cx="17" cy="19.5" r="1.4"/></svg>Spesa</button>
+  <button data-tab="map"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4L3 6.5v13.5l6-2.5 6 2.5 6-2.5V4l-6 2.5z"/><path d="M9 4v13.5M15 6.5V20"/></svg>Mappa</button>
+  <button data-tab="calendar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg>Calendario</button>
+</div></nav>
+<div class="ov" id="ov"><div class="sheet" id="sheet"></div></div>
+<div class="toast" id="toast"></div>
+<div class="lock" id="lock"><div class="box2" id="lockBox"><div class="ic"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="2.5"/><path d="M8 11V8a4 4 0 018 0v3"/></svg></div><h2>Agenda Clienti</h2><p>Caricamento…</p></div></div>
+<input type="file" id="camIn" accept="image/*" capture="environment" class="vh">
+<input type="file" id="galIn" accept="image/*" class="vh">
+<input type="file" id="fileIn" class="vh">
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+(function(){
+"use strict";
+/* ---------- state ---------- */
+var KEYS = ["clients","shopping","events"];
+var state = {clients:[], shopping:[], events:[]};
+var view = {tab:"clients", clientId:null, q:"", month:null, sel:null};
+var LS = "agendaClienti.v1";
+
+function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
+function esc(s){ return String(s==null?"":s).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];}); }
+function clone(x){ return JSON.parse(JSON.stringify(x)); }
+function pad(n){ return (n<10?"0":"")+n; }
+function ymd(d){ return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate()); }
+function parseYmd(s){ var p=s.split("-"); return new Date(+p[0],+p[1]-1,+p[2]); }
+var MESI=["gennaio","febbraio","marzo","aprile","maggio","giugno","luglio","agosto","settembre","ottobre","novembre","dicembre"];
+var GIORNI=["domenica","lunedì","martedì","mercoledì","giovedì","venerdì","sabato"];
+function fmtDate(s){ var d=parseYmd(s); return GIORNI[d.getDay()]+" "+d.getDate()+" "+MESI[d.getMonth()]; }
+function fmtShort(s){ var d=parseYmd(s); return d.getDate()+" "+MESI[d.getMonth()].slice(0,3); }
+
+try{ var cached = JSON.parse(localStorage.getItem(LS)||"null"); if(cached){ KEYS.forEach(function(k){ if(Array.isArray(cached[k])) state[k]=cached[k]; }); } }catch(e){}
+var today = new Date(); view.month = new Date(today.getFullYear(), today.getMonth(), 1); view.sel = ymd(today);
+
+/* ---------- sync with db ---------- */
+var refs = {}, timers = {}, writing = {}, dirty = {}, loaded = {};
+function setSync(cls, txt){ var el=document.getElementById("sync"); el.className="sync "+cls; el.querySelector("span").textContent=txt; }
+function cacheLocal(){ try{ localStorage.setItem(LS, JSON.stringify(state)); }catch(e){} }
+function save(key){
+  cacheLocal();
+  if(!refs[key]) return;
+  clearTimeout(timers[key]);
+  timers[key] = setTimeout(function(){ timers[key]=null; flush(key); }, 500);
+}
+function flush(key){
+  if(writing[key]){ dirty[key]=true; return; }
+  writing[key]=true; setSync("", "Salvataggio…");
+  refs[key].set({items: clone(state[key]), updated: Date.now()}).then(function(){
+    setSync("ok","Salvato");
+  }).catch(function(e){
+    setSync("err", e && e.code==="quota_exceeded" ? "Spazio pieno" : "Non salvato");
+  }).then(function(){
+    writing[key]=false;
+    if(dirty[key]){ dirty[key]=false; flush(key); }
+  });
+}
+function busy(key){ return !!(timers[key] || writing[key] || dirty[key]); }
+
+function startSync(){
+  if(!window.claude || typeof window.claude.use!=="function"){ setSync("","Solo su questo telefono"); return; }
+  Promise.all([window.claude.use("db"), window.claude.use("user")]).then(function(r){
+    var db=r[0], user=r[1];
+    if(!db || !user){ setSync("","Solo su questo telefono"); return; }
+    return user.id().then(function(id){
+      if(!id){ setSync("","Solo su questo telefono"); return; }
+      var base = "data/users/"+id;
+      setRef = db.doc(base+"/settings");
+      setRef.onSnapshot(function(snap){
+        if(snap.metadata.fromCache!==false && !snap.exists) return;
+        var d = snap.exists ? snap.data() : null;
+        if(d && d.tpl && !setWriting){ tpl=normTpl(d.tpl); cacheTpl(); }
+        if(d && d.pwHash){ if(!pw || pw.pwHash!==d.pwHash || pw.salt!==d.salt){ pw={pwHash:d.pwHash, salt:d.salt}; cachePw(); } }
+        else if(!d && pw && !setWriting){ writeSettings(); }
+        setKnown=true; lockDecide();
+      }, function(){ setKnown=true; lockDecide(); });
+      var timeout = setTimeout(function(){ setSync("err","Offline"); }, 10000);
+      KEYS.forEach(function(k){
+        var ref = db.doc(base+"/"+k);
+        ref.onSnapshot(function(snap){
+          if(snap.metadata.fromCache===false){ clearTimeout(timeout); }
+          if(!loaded[k] && snap.metadata.fromCache===false){
+            loaded[k]=true;
+            refs[k]=ref;
+            if(!snap.exists){
+              if(state[k].length) flush(k); // first time: upload what's on this phone
+              setSync("ok","Sincronizzato");
+              return;
+            }
+          }
+          if(!refs[k]) refs[k]=ref;
+          if(snap.metadata.hasPendingWrites || busy(k)) return;
+          var d = snap.exists ? snap.data() : null;
+          if(d && Array.isArray(d.items)){
+            state[k] = clone(d.items); cacheLocal(); render();
+          }
+          setSync("ok","Sincronizzato");
+        }, function(err){ clearTimeout(timeout); setSync("err","Non sincronizzato"); });
+      });
+    });
+  }).catch(function(){ setSync("","Solo su questo telefono"); });
+}
+
+/* ---------- ui helpers ---------- */
+var $main=document.getElementById("main"), $title=document.getElementById("title"), $back=document.getElementById("back"), $fab=document.getElementById("fab");
+var $ov=document.getElementById("ov"), $sheet=document.getElementById("sheet");
+function toast(t){ var el=document.getElementById("toast"); el.textContent=t; el.classList.add("show"); clearTimeout(toast._t); toast._t=setTimeout(function(){el.classList.remove("show");},1600); }
+function openSheet(html, onSubmit){
+  $sheet.innerHTML = html; $ov.classList.add("show");
+  var f=$sheet.querySelector("form");
+  if(f){ f.onsubmit=function(e){ e.preventDefault(); var data={}; new FormData(f).forEach(function(v,k){data[k]=String(v).trim();}); if(onSubmit(data, f)!==false) closeSheet(); }; }
+  var first=$sheet.querySelector("[autofocus]"); if(first) setTimeout(function(){first.focus();},50);
+}
+function closeSheet(){ $ov.classList.remove("show"); $sheet.innerHTML=""; }
+$ov.addEventListener("click", function(e){ if(e.target===$ov) closeSheet(); });
+$sheet.addEventListener("click", function(e){ if(e.target.closest("[data-close]")) closeSheet(); });
+function confirmSheet(msg, okLabel, fn){
+  openSheet('<h2>'+esc(msg)+'</h2><div class="actions"><button class="btn ghost" data-close type="button">Annulla</button><button class="btn danger" id="okc" type="button">'+esc(okLabel)+'</button></div>');
+  document.getElementById("okc").onclick=function(){ closeSheet(); fn(); };
+}
+var ICON_X='<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>';
+var ICON_OK='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
+var ICON_PLUS='<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>';
+function initials(n){ var p=n.trim().split(/\s+/); return ((p[0]||"")[0]||"?").toUpperCase()+((p[1]||"")[0]||"").toUpperCase(); }
+function client(id){ return state.clients.find(function(c){return c.id===id;}); }
+function checklistHtml(items, scope){
+  if(!items.length) return '';
+  var open = items.filter(function(i){return !i.done;}), done = items.filter(function(i){return i.done;});
+  return '<div class="card">'+open.concat(done).map(function(i){
+    return '<div class="check'+(i.done?' done':'')+'" data-scope="'+scope+'" data-id="'+i.id+'">'+
+      '<button class="box" data-act="toggle" aria-label="Spunta">'+(i.done?ICON_OK:'')+'</button>'+
+      '<div class="txt" data-act="toggle">'+esc(i.text)+'</div>'+
+      (i.qty?'<div class="q">'+esc(i.qty)+'</div>':'')+
+      '<button class="x" data-act="del" aria-label="Elimina">'+ICON_X+'</button></div>';
+  }).join('')+'</div>';
+}
+
+/* ---------- views ---------- */
+function render(){
+  document.querySelectorAll("nav.tabs button").forEach(function(b){ b.classList.toggle("on", b.dataset.tab===view.tab); });
+  $back.hidden = !(view.tab==="clients" && view.clientId);
+  $fab.style.display = (view.tab==="shopping" || view.tab==="map" || (view.tab==="clients" && view.clientId)) ? "none" : "grid";
+  if(view.tab==="clients"){ if(view.clientId && client(view.clientId)) renderClient(); else { view.clientId=null; $back.hidden=true; $fab.style.display="grid"; renderClients(); } }
+  else if(view.tab==="shopping") renderShopping();
+  else if(view.tab==="map") renderMap();
+  else renderCalendar();
+}
+
+function renderClients(){
+  $title.textContent="Clienti";
+  var q=view.q.toLowerCase();
+  var todayS=ymd(new Date()), t0=parseYmd(todayS).getTime(), next={};
+  state.events.filter(function(e){return e.clientId && e.date>=todayS;}).sort(evSort).forEach(function(e){ if(!next[e.clientId]) next[e.clientId]=e; });
+  var list=state.clients.slice().sort(function(a,b){
+      var ea=next[a.id], eb=next[b.id];
+      if(ea && eb){ var k=(ea.date+(ea.time||"99:99")).localeCompare(eb.date+(eb.time||"99:99")); if(k) return k; }
+      else if(ea) return -1; else if(eb) return 1;
+      return a.name.localeCompare(b.name,"it"); })
+    .filter(function(c){ return !q || (c.name+" "+(c.phone||"")+" "+(c.address||"")+" "+(c.notes||"")).toLowerCase().indexOf(q)>=0; });
+  var h='<input class="search" id="q" type="search" placeholder="Cerca cliente…" value="'+esc(view.q)+'">';
+  if(Object.keys(next).length) h+='<div class="legend"><span><i style="background:#fdd9b5"></i>Oggi</span><span><i style="background:#fbefb9"></i>Entro 2 giorni</span><span><i style="background:#dcefe2"></i>3 giorni o più</span></div>';
+  if(!state.clients.length) h+='<div class="empty"><b>Nessun cliente</b>Tocca + per aggiungere il primo.</div>';
+  else if(!list.length) h+='<div class="empty">Nessun risultato.</div>';
+  else h+='<div class="list">'+list.map(function(c){
+    var items=c.items||[], open=items.filter(function(i){return !i.done;}).length;
+    var sub=[]; if(open) sub.push(open+" da fare"); if((c.memos||[]).length) sub.push("📌 "+c.memos.length); if(!sub.length) sub.push(c.phone||"—");
+    var e=next[c.id], badge="";
+    if(e){
+      var dd=Math.round((parseYmd(e.date).getTime()-t0)/86400000);
+      var cls = dd===0 ? "o" : (dd<=2 ? "y" : "g");
+      var top = dd===0 ? "Oggi" : (dd===1 ? "Domani" : fmtShort(e.date));
+      var bot = e.time ? e.time : (dd>1 ? "tra "+dd+" gg" : "");
+      if(dd>1 && e.time) bot=e.time+" · "+dd+" gg";
+      badge='<div class="when '+cls+'"><b>'+esc(top)+'</b>'+(bot?'<small>'+esc(bot)+'</small>':'')+'</div>';
+    }
+    var addr="";
+    if(c.address) addr='<a class="addr" href="https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(c.address)+'" target="_blank" rel="noopener">'+PIN_SM+'<span style="overflow:hidden;text-overflow:ellipsis">'+esc(c.address)+'</span></a>';
+    else if(c.pos) addr='<a class="addr" href="'+esc(mapsOpen(c.pos))+'" target="_blank" rel="noopener">'+PIN_SM+'Apri posizione</a>';
+    var msgB = c.phone ? '<button class="msgb" data-msg="'+c.id+'" aria-label="Invia messaggio">'+ICON_MSG+'</button>' : '';
+    return '<div class="card client" role="button" tabindex="0" data-open="'+c.id+'"><div class="avatar">'+esc(initials(c.name))+'</div><div class="t"><div class="n">'+esc(c.name)+'</div>'+addr+'<div class="s">'+esc(sub.join(" · "))+'</div></div>'+msgB+badge+'</div>';
+  }).join('')+'</div>';
+  $main.innerHTML=h;
+  var qi=document.getElementById("q");
+  qi.oninput=function(){ view.q=qi.value; var pos=qi.selectionStart; renderClients(); var n=document.getElementById("q"); n.focus(); try{n.setSelectionRange(pos,pos);}catch(e){} };
+}
+
+function renderClient(){
+  var c=client(view.clientId); $title.textContent=c.name;
+  var rows='';
+  if(c.phone) rows+='<div class="row"><span>Telefono</span><span><a href="tel:'+esc(c.phone.replace(/\s/g,""))+'">'+esc(c.phone)+'</a></span></div>';
+  if(c.email) rows+='<div class="row"><span>Email</span><span>'+esc(c.email)+'</span></div>';
+  if(c.address) rows+='<div class="row"><span>Indirizzo</span><span>'+esc(c.address)+'</span></div>';
+  var nav = c.pos ? mapsNav(c.pos) : (c.address ? "https://www.google.com/maps/dir/?api=1&destination="+encodeURIComponent(c.address) : "");
+  if(c.pos) rows+='<div class="row"><span>Posizione</span><span><a href="'+esc(mapsOpen(c.pos))+'" target="_blank" rel="noopener">Apri in Maps</a> · <a href="'+esc(nav)+'" target="_blank" rel="noopener">Naviga</a><br><small style="color:var(--muted)">Segnata il '+esc(fmtShort(c.pos.date))+'</small></span></div>';
+  else if(nav) rows+='<div class="row"><span>Strada</span><span><a href="'+esc(nav)+'" target="_blank" rel="noopener">Naviga all\'indirizzo</a></span></div>';
+  if(c.notes) rows+='<div class="row"><span>Note</span><span>'+esc(c.notes)+'</span></div>';
+  var items=c.items||[];
+  var todayS=ymd(new Date());
+  var evs=state.events.filter(function(e){return e.clientId===c.id && e.date>=todayS;}).sort(evSort);
+  var h='<div class="card info">'+(rows||'<div style="color:var(--muted)">Nessun dettaglio inserito.</div>')+
+    '<div class="actions"><button class="btn ghost" id="editC">Modifica</button><button class="btn ghost" id="apptC">+ Appuntamento</button></div>'+
+    '<div class="actions"><button class="btn memo-btn full" id="memoC" type="button">'+ICON_MEMO+'Cose da ricordare'+((c.memos||[]).length?' ('+c.memos.length+')':'')+'</button></div>'+
+    '<div class="actions"><button class="btn ghost full" id="posC" type="button">'+ICON_PIN+(c.pos?'Aggiorna posizione':'Segna posizione')+'</button></div>'+
+    '<div class="actions"><button class="btn full" id="camC">'+ICON_CAM+'Foto lista / bolla</button></div>'+'</div>';
+  var memos=c.memos||[];
+  if(memos.length){
+    h+='<div class="section">Cose da ricordare<button id="memoAdd" type="button">+ Aggiungi</button></div><div class="memo" id="memoList">'+
+      memos.slice().reverse().map(function(m){ return '<div class="m" data-memo="'+m.id+'"><div class="tx">'+esc(m.text)+'<small>'+esc(fmtShort(m.date))+'</small></div><button class="x" data-memodel="'+m.id+'" aria-label="Elimina">'+ICON_X+'</button></div>'; }).join('')+'</div>';
+  }
+  h+='<div class="section">Elenco<span>'+(items.length?items.filter(function(i){return i.done;}).length+'/'+items.length:'')+'</span></div>';
+  h+='<form class="addrow" id="addI"><input name="t" placeholder="Aggiungi voce…" autocomplete="off"><button aria-label="Aggiungi">'+ICON_PLUS+'</button></form>';
+  h+= items.length ? checklistHtml(items,"client") : '<div class="empty" style="padding:16px">Nessuna voce. Scrivi sopra e premi +.</div>';
+  if(items.some(function(i){return i.done;})) h+='<div style="text-align:right;margin-top:8px"><button class="btn ghost" id="clrC" style="padding:8px 12px;font-size:14px">Rimuovi spuntate</button></div>';
+  var shop=c.shop||[];
+  h+='<div class="section">Lista spesa<span>'+(shop.length?shop.filter(function(i){return i.done;}).length+'/'+shop.length:'')+'</span></div>';
+  h+='<form class="addrow" id="addCS"><input name="t" placeholder="Cosa comprare…" autocomplete="off"><input class="qty" name="q" placeholder="Q.tà" autocomplete="off"><button aria-label="Aggiungi">'+ICON_PLUS+'</button></form>';
+  h+= shop.length ? checklistHtml(shop,"cshop") : '<div class="empty" style="padding:16px">Nessun articolo. Scrivi sopra e premi +.</div>';
+  h+='<div class="actions">'+(shop.some(function(i){return i.done;})?'<button class="btn ghost" id="clrCS" type="button" style="padding:8px 12px;font-size:14px">Rimuovi presi</button>':'')+
+     '<button class="btn" id="pdfCS" type="button" style="flex:1">'+ICON_PDF+'Crea PDF e condividi</button></div>';
+  var files=c.files||[];
+  h+='<div class="section">File e manuali</div>';
+  if(files.length) h+='<div class="card" style="margin-bottom:10px">'+files.slice().reverse().map(function(f){
+      var ext=(f.name.split(".").pop()||"").slice(0,4).toUpperCase();
+      return '<button class="fl" data-file="'+esc(f.id)+'"><div class="fi'+(f.type==="application/pdf"?' pdf':'')+'">'+esc(ext||"FILE")+'</div><div class="fn"><b>'+esc(f.name)+'</b><small>'+esc(fmtSize(f.size))+' · '+esc(fmtShort(f.date))+'</small></div></button>';
+    }).join('')+'</div>';
+  h+='<div class="actions" style="margin-top:0"><div class="btn full fbtn">'+ICON_CLIP+'Aggiungi file (PDF, foto…)<input type="file" accept="application/pdf,image/*,video/mp4,video/webm,text/plain" multiple data-fpick></div></div>';
+  var links=c.links||[];
+  h+='<div class="section">Link manuali e tutorial</div>';
+  h+= links.length ? '<div class="card">'+links.map(function(l){
+      var yt=/youtu\.?be/i.test(l.url);
+      return '<div class="fl"><a href="'+esc(l.url)+'" target="_blank" rel="noopener" style="display:flex;align-items:center;gap:12px;flex:1;min-width:0;color:inherit;text-decoration:none"><div class="fi'+(yt?' pdf':'')+'">'+(yt?'▶':'🔗')+'</div><div class="fn"><b>'+esc(l.name)+'</b><small>'+esc(linkHost(l.url))+'</small></div></a><button class="x" data-linkedit="'+esc(l.id)+'" aria-label="Modifica"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19 9l-4-4L4 16z"/></svg></button></div>';
+    }).join('')+'</div>' : '<div class="empty" style="padding:16px">Nessun link. Copia il link di un manuale o di un video YouTube e incollalo qui.</div>';
+  h+='<div class="actions"><button class="btn full" id="linkAdd" type="button">'+ICON_LINK+'Aggiungi link manuale / video</button></div>';
+  var photos=c.photos||[];
+  if(photos.length){
+    h+='<div class="section">Foto e bolle<span>'+photos.length+'</span></div><div class="photos">'+
+      photos.slice().reverse().map(function(p){ return '<button class="ph" data-photo="'+esc(p.id)+'"><img data-bid="'+esc(p.id)+'" alt=""><span>'+esc(p.label||fmtShort(p.date))+'</span></button>'; }).join('')+'</div>';
+  }
+  h+='<div class="section">Prossimi appuntamenti</div>';
+  h+= evs.length ? '<div class="list">'+evs.map(evHtml).join('')+'</div>' : '<div class="empty" style="padding:16px">Nessun appuntamento in programma.</div>';
+  h+='<div style="margin-top:28px"><button class="btn danger full" id="delC">Elimina cliente</button></div>';
+  $main.innerHTML=h;
+  document.getElementById("addI").onsubmit=function(e){ e.preventDefault(); var v=this.t.value.trim(); if(!v) return; c.items=(c.items||[]); c.items.push({id:uid(),text:v,done:false}); save("clients"); renderClient(); var inp=document.querySelector("#addI input"); inp.focus(); };
+  document.getElementById("editC").onclick=function(){ clientForm(c); };
+  document.getElementById("camC").onclick=function(){ photoSource(c.id); };
+  document.getElementById("posC").onclick=function(){ posSheet(c.id); };
+  document.getElementById("linkAdd").onclick=function(){ linkForm(c.id); };
+  $main.querySelectorAll("[data-fpick]").forEach(function(inp){ inp.addEventListener("click", function(ev){ ev.stopPropagation(); }); inp.addEventListener("change", function(){ uploadFiles(c.id, Array.prototype.slice.call(this.files||[])); }); });
+  document.getElementById("memoC").onclick=function(){ memoForm(c.id); };
+  var ma=document.getElementById("memoAdd"); if(ma) ma.onclick=function(){ memoForm(c.id); };
+  var ml=document.getElementById("memoList");
+  if(ml) ml.addEventListener("click", function(ev){
+    ev.stopPropagation();
+    var d=ev.target.closest("[data-memodel]");
+    if(d){ var id=d.dataset.memodel; confirmSheet("Eliminare questo promemoria?","Elimina",function(){ var cc=client(c.id); if(cc){ cc.memos=(cc.memos||[]).filter(function(m){return m.id!==id;}); save("clients"); render(); } }); return; }
+    var r=ev.target.closest("[data-memo]"); if(r){ var mm=(c.memos||[]).find(function(m){return m.id===r.dataset.memo;}); if(mm) memoForm(c.id, mm); }
+  });
+  document.getElementById("addCS").onsubmit=function(e){ e.preventDefault(); var v=this.t.value.trim(); if(!v) return; c.shop=(c.shop||[]); c.shop.push({id:uid(),text:v,qty:this.q.value.trim(),done:false}); save("clients"); renderClient(); document.querySelector("#addCS input").focus(); };
+  var clrCS=document.getElementById("clrCS"); if(clrCS) clrCS.onclick=function(){ c.shop=c.shop.filter(function(i){return !i.done;}); save("clients"); renderClient(); };
+  document.getElementById("pdfCS").onclick=function(){ var cid=c.id; if(!(c.shop||[]).length){ toast("Aggiungi prima qualcosa alla lista spesa"); return; } pdfSheet(function(){ var cc=client(cid); return cc&&cc.shop||[]; }); };
+  document.getElementById("apptC").onclick=function(){ eventForm({date:ymd(new Date()),clientId:c.id}); };
+  var clr=document.getElementById("clrC"); if(clr) clr.onclick=function(){ c.items=c.items.filter(function(i){return !i.done;}); save("clients"); renderClient(); };
+  document.getElementById("delC").onclick=function(){ confirmSheet("Eliminare "+c.name+"?","Elimina",function(){ (c.files||[]).concat(c.photos||[]).forEach(function(p){ cap("assets").then(function(a){ if(a) return a.delete(p.id); }).catch(function(){}); }); state.clients=state.clients.filter(function(x){return x.id!==c.id;}); state.events.forEach(function(e){ if(e.clientId===c.id) e.clientId=""; }); save("clients"); save("events"); view.clientId=null; render(); toast("Cliente eliminato"); }); };
+}
+
+function renderShopping(){
+  $title.textContent="Lista spesa";
+  var items=state.shopping;
+  var h='<form class="addrow" id="addS"><input name="t" placeholder="Cosa comprare…" autocomplete="off"><input class="qty" name="q" placeholder="Q.tà" autocomplete="off"><button aria-label="Aggiungi">'+ICON_PLUS+'</button></form>';
+  h+='<button class="btn full" id="pdfS" type="button" style="margin-bottom:12px">'+ICON_PDF+'Crea PDF e condividi</button>';
+  h+= items.length ? checklistHtml(items,"shop") : '<div class="empty"><b>Lista vuota</b>Aggiungi qualcosa da comprare.</div>';
+  if(items.length){
+    var d=items.filter(function(i){return i.done;}).length;
+    h+='<div class="actions" style="justify-content:space-between;align-items:center"><span style="color:var(--muted);font-size:14px">'+d+' di '+items.length+' presi</span><span style="display:flex;gap:8px">'+
+      (d?'<button class="btn ghost" id="clrS" style="padding:8px 12px;font-size:14px">Rimuovi presi</button>':'')+
+      '<button class="btn danger" id="allS" style="padding:8px 12px;font-size:14px">Svuota</button></span></div>';
+  }
+  $main.innerHTML=h;
+  document.getElementById("addS").onsubmit=function(e){ e.preventDefault(); var v=this.t.value.trim(); if(!v) return; state.shopping.push({id:uid(),text:v,qty:this.q.value.trim(),done:false}); save("shopping"); renderShopping(); document.querySelector("#addS input").focus(); };
+  var c=document.getElementById("clrS"); if(c) c.onclick=function(){ state.shopping=state.shopping.filter(function(i){return !i.done;}); save("shopping"); renderShopping(); };
+  var pb=document.getElementById("pdfS"); if(pb) pb.onclick=function(){ if(!state.shopping.length){ toast("Aggiungi prima qualcosa alla lista"); return; } pdfSheet(); };
+  var a=document.getElementById("allS"); if(a) a.onclick=function(){ confirmSheet("Svuotare tutta la lista?","Svuota",function(){ state.shopping=[]; save("shopping"); renderShopping(); }); };
+}
+
+function evSort(a,b){ return (a.date+(a.time||"99:99")).localeCompare(b.date+(b.time||"99:99")); }
+function evName(e){ var c=e.clientId?client(e.clientId):null; return c ? c.name : (e.title || "Appuntamento"); }
+function evHtml(e, showDate){
+  var c=e.clientId?client(e.clientId):null;
+  return '<button class="card ev" data-ev="'+e.id+'"><div class="tm">'+esc(e.time||"—")+(showDate!==false?'<div class="dt">'+esc(fmtShort(e.date))+'</div>':'')+'</div><div class="tt"><b>'+esc(evName(e))+'</b>'+(e.notes?'<small>'+esc(e.notes)+'</small>':'')+'</div></button>';
+}
+
+function renderCalendar(){
+  $title.textContent="Calendario";
+  var m=view.month, y=m.getFullYear(), mo=m.getMonth();
+  var first=new Date(y,mo,1), offset=(first.getDay()+6)%7, start=new Date(y,mo,1-offset);
+  var byDay={}; state.events.forEach(function(e){ (byDay[e.date]=byDay[e.date]||[]).push(e); });
+  var todayS=ymd(new Date());
+  var h='<div class="card"><div class="calhead"><button id="prev" aria-label="Mese precedente"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></button><b>'+MESI[mo]+' '+y+'</b><button id="next" aria-label="Mese successivo"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button></div><div class="grid">';
+  ["L","M","M","G","V","S","D"].forEach(function(d){ h+='<div class="dow">'+d+'</div>'; });
+  for(var i=0;i<42;i++){
+    var d=new Date(start.getFullYear(),start.getMonth(),start.getDate()+i), s=ymd(d), n=(byDay[s]||[]).length;
+    if(i===35 && d.getMonth()!==mo) break;
+    h+='<button class="day'+(d.getMonth()!==mo?' out':'')+(s===todayS?' today':'')+(s===view.sel?' sel':'')+'" data-day="'+s+'">'+d.getDate()+'<span class="dots">'+(n?'<i></i>':'')+(n>1?'<i></i>':'')+(n>2?'<i></i>':'')+'</span></button>';
+  }
+  h+='</div></div>';
+  var dayEv=(byDay[view.sel]||[]).slice().sort(evSort);
+  h+='<div class="section"><span style="text-transform:capitalize">'+esc(fmtDate(view.sel))+'</span>'+(view.sel!==todayS?'<button id="goT">Oggi</button>':'')+'</div>';
+  h+= dayEv.length ? '<div class="list">'+dayEv.map(function(e){return evHtml(e,false);}).join('')+'</div>' : '<div class="empty" style="padding:16px">Nessun appuntamento. Tocca + per aggiungerne uno.</div>';
+  var up=state.events.filter(function(e){return e.date>=todayS && e.date!==view.sel;}).sort(evSort).slice(0,5);
+  if(up.length) h+='<div class="section">In arrivo</div><div class="list">'+up.map(function(e){return evHtml(e,true);}).join('')+'</div>';
+  $main.innerHTML=h;
+  document.getElementById("prev").onclick=function(){ view.month=new Date(y,mo-1,1); renderCalendar(); };
+  document.getElementById("next").onclick=function(){ view.month=new Date(y,mo+1,1); renderCalendar(); };
+  var g=document.getElementById("goT"); if(g) g.onclick=function(){ var t=new Date(); view.sel=ymd(t); view.month=new Date(t.getFullYear(),t.getMonth(),1); renderCalendar(); };
+}
+
+/* ---------- forms ---------- */
+function clientForm(c){
+  var isNew=!c; c=c||{};
+  openSheet('<h2>'+(isNew?'Nuovo cliente':'Modifica cliente')+'</h2><form>'+
+    '<label class="field"><span>Nome *</span><input name="name" required autofocus value="'+esc(c.name)+'"></label>'+
+    '<div class="two"><label class="field"><span>Telefono</span><input name="phone" type="tel" value="'+esc(c.phone)+'"></label>'+
+    '<label class="field"><span>Email</span><input name="email" type="email" value="'+esc(c.email)+'"></label></div>'+
+    '<label class="field"><span>Indirizzo</span><input name="address" value="'+esc(c.address)+'"></label>'+
+    '<label class="field"><span>Note</span><textarea name="notes">'+esc(c.notes)+'</textarea></label>'+
+    '<div class="actions"><button type="button" class="btn ghost" data-close>Annulla</button><button class="btn">Salva</button></div></form>',
+  function(d){
+    if(!d.name) return false;
+    if(isNew){ var n={id:uid(),name:d.name,phone:d.phone,email:d.email,address:d.address,notes:d.notes,items:[]}; state.clients.push(n); view.clientId=n.id; }
+    else { var t=client(c.id); ["name","phone","email","address","notes"].forEach(function(k){t[k]=d[k];}); }
+    save("clients"); render(); toast(isNew?"Cliente aggiunto":"Salvato");
+  });
+}
+
+function gcalUrl(e){
+  var c=e.clientId?client(e.clientId):null, d=e.date.replace(/-/g,""), dates;
+  if(e.time){
+    var p=e.time.split(":"), st=parseYmd(e.date); st.setHours(+p[0],+p[1]);
+    var en=new Date(st.getTime()+3600000);
+    var f=function(x){return x.getFullYear()+pad(x.getMonth()+1)+pad(x.getDate())+"T"+pad(x.getHours())+pad(x.getMinutes())+"00";};
+    dates=f(st)+"/"+f(en);
+  } else {
+    var n=parseYmd(e.date); n.setDate(n.getDate()+1);
+    dates=d+"/"+n.getFullYear()+pad(n.getMonth()+1)+pad(n.getDate());
+  }
+  var det=[]; if(c){ det.push("Cliente: "+c.name); if(c.phone) det.push("Tel: "+c.phone); } if(e.notes) det.push(e.notes);
+  var q="action=TEMPLATE&text="+encodeURIComponent(c ? c.name : (e.title||"Appuntamento"))+"&dates="+dates+"&ctz=Europe/Rome&details="+encodeURIComponent(det.join("\n"));
+  if(c && c.address) q+="&location="+encodeURIComponent(c.address);
+  return "https://calendar.google.com/calendar/render?"+q;
+}
+var ICON_BELL='<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;margin-right:6px"><path d="M6 16V11a6 6 0 0112 0v5l1.5 2h-15z"/><path d="M10 20.5a2 2 0 004 0"/></svg>';
+function remindSheet(e){
+  openSheet('<h2>Appuntamento salvato</h2><p style="margin:0 0 14px;color:var(--muted)">Per ricevere la notifica sul telefono, aggiungilo al calendario di Android. Si apre Google Calendar già compilato: tocca <b>Salva</b>.</p>'+
+    '<div class="actions"><button type="button" class="btn ghost" data-close>Non ora</button><a class="btn" style="text-align:center;text-decoration:none" href="'+esc(gcalUrl(e))+'" target="_blank" rel="noopener">'+ICON_BELL+'Attiva notifica</a></div>');
+}
+
+function eventForm(e){
+  var isNew=!e || !e.id; e=e||{};
+  var opts='<option value="">— nessuno —</option>'+state.clients.slice().sort(function(a,b){return a.name.localeCompare(b.name,"it");}).map(function(c){return '<option value="'+c.id+'"'+(c.id===e.clientId?' selected':'')+'>'+esc(c.name)+'</option>';}).join('');
+  openSheet('<h2>'+(isNew?'Nuovo appuntamento':'Modifica appuntamento')+'</h2><form>'+
+    '<label class="field"><span>Cliente</span><select name="clientId">'+opts+'</select></label>'+
+    '<div class="two"><label class="field"><span>Data *</span><input name="date" type="date" required value="'+esc(e.date||view.sel)+'"></label>'+
+    '<label class="field"><span>Ora</span><input name="time" type="time" value="'+esc(e.time)+'"></label></div>'+
+    '<label class="field"><span>Note</span><textarea name="notes">'+esc(e.notes)+'</textarea></label>'+
+    (isNew?'':'<a class="btn ghost full" style="display:block;text-align:center;text-decoration:none;margin-bottom:8px" href="'+esc(gcalUrl(e))+'" target="_blank" rel="noopener">'+ICON_BELL+'Aggiungi notifica nel calendario del telefono</a>')+
+    '<div class="actions">'+(isNew?'<button type="button" class="btn ghost" data-close>Annulla</button>':'<button type="button" class="btn danger" id="delE">Elimina</button>')+'<button class="btn">Salva</button></div></form>',
+  function(d){
+    if(!d.date) return false;
+    var created=null;
+    if(isNew){ created={id:uid(),date:d.date,time:d.time,clientId:d.clientId,notes:d.notes}; state.events.push(created); setTimeout(function(){ remindSheet(created); },0); }
+    else { var t=state.events.find(function(x){return x.id===e.id;}); if(t){ ["date","time","clientId","notes"].forEach(function(k){t[k]=d[k];}); delete t.title; } }
+    save("events");
+    if(view.tab==="calendar"){ view.sel=d.date; var dd=parseYmd(d.date); view.month=new Date(dd.getFullYear(),dd.getMonth(),1); }
+    render(); if(!isNew) toast("Salvato");
+  });
+  var del=document.getElementById("delE");
+  if(del) del.onclick=function(){ state.events=state.events.filter(function(x){return x.id!==e.id;}); save("events"); closeSheet(); render(); toast("Appuntamento eliminato"); };
+}
+
+/* ---------- photo → list / bolla ---------- */
+var ICON_CAM='<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;margin-right:8px"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>';
+var caps={};
+function cap(n){
+  if(!(n in caps)) caps[n] = (window.claude && typeof window.claude.use==="function") ? Promise.resolve(window.claude.use(n)).catch(function(){return null;}) : Promise.resolve(null);
+  return caps[n];
+}
+var photoFor=null;
+function photoSource(cid){
+  photoFor=cid;
+  openSheet('<h2>Foto di una lista o bolla</h2><div class="actions" style="flex-direction:column"><div class="btn full fbtn">'+ICON_CAM+'Scatta foto<input type="file" accept="image/*" capture="environment" data-ppick></div><div class="btn ghost full fbtn">Scegli dalla galleria<input type="file" accept="image/*" data-ppick></div><button class="btn ghost full" type="button" data-close>Annulla</button></div>');
+  $sheet.querySelectorAll("[data-ppick]").forEach(function(inp){ inp.addEventListener("change", function(){ var f=this.files&&this.files[0]; if(f) photoFlow(cid, f); }); });
+}
+["camIn","galIn"].forEach(function(id){
+  document.getElementById(id).addEventListener("change", function(){ var f=this.files&&this.files[0]; if(f && photoFor) photoFlow(photoFor, f); });
+});
+function shrink(file, max){
+  return new Promise(function(res){
+    var url=URL.createObjectURL(file), img=new Image();
+    img.onload=function(){
+      var s=Math.min(1, max/Math.max(img.naturalWidth,img.naturalHeight));
+      var cv=document.createElement("canvas"); cv.width=Math.round(img.naturalWidth*s); cv.height=Math.round(img.naturalHeight*s);
+      cv.getContext("2d").drawImage(img,0,0,cv.width,cv.height); URL.revokeObjectURL(url);
+      cv.toBlob(function(b){ res(b||file); }, "image/jpeg", 0.82);
+    };
+    img.onerror=function(){ URL.revokeObjectURL(url); res(file); };
+    img.src=url;
+  });
+}
+function sampleErr(e){
+  var c=e&&e.code;
+  if(c==="not_granted"||c==="sampling_disabled"||c==="not_declared") return "La lettura delle foto non è stata autorizzata.";
+  if(c==="rate_limited") return "Troppe richieste: riprova tra un po'.";
+  if(c==="invalid_json"||c==="empty_completion") return "Non sono riuscito a leggere la foto. Prova con una foto più nitida.";
+  if(c==="image_rejected") return "Questa immagine non va bene, provane un'altra.";
+  if(c==="refused") return "Non è stato possibile leggere questa foto.";
+  return "Errore di connessione. Riprova.";
+}
+function savePhoto(cid, blob, label){
+  return cap("assets").then(function(assets){
+    if(!assets) throw {code:"no_assets"};
+    return assets.upload(blob,{type:"image/jpeg"});
+  }).then(function(r){
+    var c=client(cid); if(!c) return;
+    c.photos=c.photos||[]; c.photos.push({id:r.id, date:ymd(new Date()), label:label||""});
+    save("clients"); render();
+  });
+}
+function photoFlow(cid, file){
+  openSheet('<h2>Preparo la foto…</h2><div class="spin"></div>');
+  Promise.all([shrink(file,1800), cap("sample"), cap("assets")]).then(function(r){
+    var blob=r[0], sample=r[1], assets=r[2];
+    return (sample ? sample.limits().catch(function(){return null;}) : Promise.resolve(null)).then(function(lim){
+      var canRead=!!(lim && lim.images), canSave=!!assets, url=URL.createObjectURL(blob);
+      var h='<h2>Cosa vuoi fare?</h2><img class="preview" src="'+url+'" alt="">';
+      if(!canRead && !canSave){ h+='<p style="color:var(--muted)">Le foto non sono disponibili su questo dispositivo. Apri l\'app dal link di Claude, con l\'accesso fatto.</p><div class="actions"><button class="btn ghost" data-close type="button">Chiudi</button></div>'; openSheet(h); return; }
+      if(canRead && canSave) h+='<label class="opt"><input type="checkbox" id="keepP" checked>Salva anche la foto nella scheda del cliente</label>';
+      h+='<div class="actions" style="flex-direction:column">'+
+        (canRead?'<button class="btn full" id="readP" type="button">Leggi e crea la lista</button>':'')+
+        (canSave?'<button class="btn ghost full" id="saveP" type="button">Salva solo la foto</button>':'')+
+        '<button class="btn ghost full" data-close type="button">Annulla</button></div>';
+      openSheet(h);
+      var sv=document.getElementById("saveP");
+      if(sv) sv.onclick=function(){
+        openSheet('<h2>Salvo la foto…</h2><div class="spin"></div>');
+        savePhoto(cid, blob, "").then(function(){ closeSheet(); toast("Foto salvata"); }).catch(function(){ openSheet('<h2>Foto non salvata</h2><p>Riprova tra poco.</p><div class="actions"><button class="btn ghost" data-close type="button">Chiudi</button></div>'); });
+      };
+      var rd=document.getElementById("readP");
+      if(rd) rd.onclick=function(){
+        var keep=canSave && (!document.getElementById("keepP") || document.getElementById("keepP").checked);
+        readPhoto(cid, blob, url, sample, keep);
+      };
+    });
+  });
+}
+function readPhoto(cid, blob, url, sample, keep){
+  var ctl=new AbortController();
+  openSheet('<h2>Sto leggendo la foto…</h2><img class="preview" src="'+url+'" alt="" style="max-height:25vh"><div class="spin"></div><p style="text-align:center;color:var(--muted);margin:0 0 14px">Può volerci fino a un minuto.</p><div class="actions"><button class="btn ghost full" id="stopP" type="button">Annulla</button></div>');
+  document.getElementById("stopP").onclick=function(){ ctl.abort(); closeSheet(); };
+  var prompt='La foto allegata è una lista scritta (anche a mano) oppure una bolla di consegna / DDT / fattura. '+
+    'Estrai le voci o gli articoli elencati, nell\'ordine in cui compaiono. '+
+    'Per una bolla metti in "text" la descrizione dell\'articolo (con il codice se c\'è) e in "qty" quantità e unità (es. "3 pz", "2,5 kg"). '+
+    'Ignora intestazioni, indirizzi, partita IVA, prezzi, totali, firme e note di trasporto. '+
+    'Scrivi in italiano, correggendo solo errori evidenti di lettura. '+
+    'Rispondi solo con JSON in questa forma: {"tipo":"lista" oppure "bolla","titolo":"breve titolo, es. \\"Bolla n. 123 del 12/11\\" oppure \\"Lista\\"","voci":[{"text":"...","qty":""}]}. '+
+    'Se non trovi voci, "voci" è [].';
+  sample.json(prompt,{images:blob, signal:ctl.signal}).then(function(res){
+    var voci=(res && Array.isArray(res.voci)) ? res.voci : [];
+    voci=voci.map(function(v){ return {text:String(v&&v.text||"").trim(), qty:String(v&&v.qty||"").trim()}; }).filter(function(v){return v.text;});
+    var titolo=String(res&&res.titolo||"").trim().slice(0,60);
+    if(keep) savePhoto(cid, blob, titolo).catch(function(){ toast("Foto non salvata"); });
+    reviewItems(cid, voci, titolo);
+  }).catch(function(e){
+    if(e && e.code==="cancelled") return;
+    openSheet('<h2>Non ci sono riuscito</h2><p>'+esc(sampleErr(e))+'</p><div class="actions"><button class="btn ghost" data-close type="button">Chiudi</button><button class="btn" id="retryP" type="button">Riprova</button></div>');
+    document.getElementById("retryP").onclick=function(){ readPhoto(cid, blob, url, sample, keep); };
+  });
+}
+function reviewItems(cid, voci, titolo){
+  if(!voci.length){ openSheet('<h2>Nessuna voce trovata</h2><p>Non ho trovato voci da aggiungere in questa foto.'+'</p><div class="actions"><button class="btn ghost" data-close type="button">Chiudi</button></div>'); return; }
+  var h='<h2>'+esc(titolo||"Voci trovate")+'</h2><p style="margin:-6px 0 12px;color:var(--muted);font-size:14px">Controlla e correggi, poi aggiungi all\'elenco del cliente.</p><div class="card" id="rvList">'+
+    voci.map(function(v,i){ return '<div class="rv"><input type="checkbox" checked data-i="'+i+'"><input type="text" value="'+esc(v.text)+'" data-t="'+i+'">'+(v.qty?'<span class="q">'+esc(v.qty)+'</span>':'')+'</div>'; }).join('')+
+    '</div><div class="actions" style="margin-top:14px"><button class="btn ghost" data-close type="button">Annulla</button><button class="btn" id="addRv" type="button">Aggiungi '+voci.length+' voci</button></div>';
+  openSheet(h);
+  var list=document.getElementById("rvList"), btn=document.getElementById("addRv");
+  list.addEventListener("change", function(){ var n=list.querySelectorAll("input[type=checkbox]:checked").length; btn.textContent="Aggiungi "+n+" voc"+(n===1?"e":"i"); btn.disabled=!n; });
+  btn.onclick=function(){
+    var c=client(cid); if(!c){ closeSheet(); return; }
+    c.items=c.items||[]; var n=0;
+    voci.forEach(function(v,i){
+      if(!list.querySelector('[data-i="'+i+'"]').checked) return;
+      var t=list.querySelector('[data-t="'+i+'"]').value.trim(); if(!t) return;
+      c.items.push({id:uid(), text:t, qty:v.qty, done:false}); n++;
+    });
+    save("clients"); closeSheet(); render(); toast(n+" voci aggiunte");
+  };
+}
+function photoView(cid, pid){
+  var c=client(cid); if(!c) return; var p=(c.photos||[]).find(function(x){return x.id===pid;}); if(!p) return;
+  openSheet('<h2>'+esc(p.label||"Foto")+'</h2><img class="preview" style="max-height:60vh" src="/_blob/'+encodeURIComponent(p.id)+'" alt=""><p style="margin:0 0 12px;color:var(--muted);font-size:14px;text-transform:capitalize">'+esc(fmtDate(p.date))+'</p>'+
+    '<div class="actions"><button class="btn danger" id="delP" type="button">Elimina</button><button class="btn ghost" id="readAgain" type="button">Crea lista</button><button class="btn" data-close type="button">Chiudi</button></div>');
+  document.getElementById("delP").onclick=function(){
+    confirmSheet("Eliminare questa foto?","Elimina",function(){
+      var cc=client(cid); if(cc){ cc.photos=(cc.photos||[]).filter(function(x){return x.id!==pid;}); save("clients"); render(); }
+      cap("assets").then(function(a){ if(a) return a.delete(pid); }).catch(function(){});
+      toast("Foto eliminata");
+    });
+  };
+  document.getElementById("readAgain").onclick=function(){
+    openSheet('<h2>Preparo la foto…</h2><div class="spin"></div>');
+    Promise.all([fetch("/_blob/"+encodeURIComponent(pid)).then(function(r){ if(!r.ok) throw 0; return r.blob(); }), cap("sample")]).then(function(r){
+      var blob=r[0], sample=r[1];
+      if(!sample) throw 0;
+      readPhoto(cid, blob, URL.createObjectURL(blob), sample, false);
+    }).catch(function(){ openSheet('<h2>Non disponibile</h2><p>Non riesco a rileggere questa foto adesso.</p><div class="actions"><button class="btn ghost" data-close type="button">Chiudi</button></div>'); });
+  };
+}
+
+/* ---------- file e manuali ---------- */
+var fileFor=null;
+var ICON_CLIP='<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;margin-right:8px"><path d="M21 11.5l-8.6 8.6a5 5 0 01-7.1-7.1l8.6-8.6a3.3 3.3 0 014.7 4.7l-8.6 8.6a1.7 1.7 0 01-2.4-2.4l7.9-7.9"/></svg>';
+function fmtSize(b){ b=+b||0; return b<1024 ? b+" B" : b<1048576 ? Math.round(b/1024)+" KB" : (b/1048576).toFixed(1).replace(".",",")+" MB"; }
+var TYPE_BY_EXT={pdf:"application/pdf",jpg:"image/jpeg",jpeg:"image/jpeg",png:"image/png",gif:"image/gif",webp:"image/webp",mp4:"video/mp4",webm:"video/webm",txt:"text/plain",csv:"text/csv",md:"text/markdown",json:"application/json"};
+function fileType(f){ var ext=(f.name.split(".").pop()||"").toLowerCase(); return TYPE_BY_EXT[ext] || (Object.keys(TYPE_BY_EXT).map(function(k){return TYPE_BY_EXT[k];}).indexOf(f.type)>=0 ? f.type : ""); }
+document.getElementById("fileIn").addEventListener("change", function(){ uploadFiles(fileFor, Array.prototype.slice.call(this.files||[])); });
+function linkSheet(cid){
+  openSheet('<h2>Collega un file</h2><div class="spin"></div>');
+  cap("assets").then(function(a){ if(!a) throw 0; return a.list(); }).then(function(r){
+    var used={}; state.clients.forEach(function(c){ (c.files||[]).concat(c.photos||[]).forEach(function(f){ used[f.id]=1; }); });
+    var free=(r.assets||[]).filter(function(x){ return !used[x.id]; }).reverse();
+    var h='<h2>Collega un file</h2><p style="margin:-6px 0 12px;color:var(--muted);font-size:14px">Se il telefono non ti fa scegliere il file, mandalo a Claude nella chat dove hai creato l\'app: lo carico io e lo trovi qui sotto.</p>';
+    if(!free.length) h+='<div class="empty" style="padding:16px">Nessun file in attesa.</div><div class="actions"><button class="btn ghost full" data-close type="button">Chiudi</button></div>';
+    else h+='<div class="card">'+free.map(function(x){ var ext=(x.contentType.split("/")[1]||"file").slice(0,4).toUpperCase(); return '<button class="fl" data-link="'+esc(x.id)+'" data-ct="'+esc(x.contentType)+'" data-sz="'+(x.sizeBytes||0)+'"><div class="fi'+(x.contentType==="application/pdf"?' pdf':'')+'">'+esc(ext)+'</div><div class="fn"><b>File del '+esc(fmtShort(String(x.createdAt||"").slice(0,10)||ymd(new Date())))+'</b><small>'+esc(fmtSize(x.sizeBytes))+'</small></div></button>'; }).join('')+'</div><div class="actions"><button class="btn ghost full" data-close type="button">Chiudi</button></div>';
+    openSheet(h);
+    $sheet.querySelectorAll("[data-link]").forEach(function(b){ b.onclick=function(){
+      var id=b.dataset.link, ct=b.dataset.ct, sz=+b.dataset.sz;
+      openSheet('<h2>Nome del file</h2><form><label class="field"><span>Nome</span><input name="n" autofocus value="'+(ct==="application/pdf"?"Manuale cancello.pdf":"Documento")+'"></label><div class="actions"><button type="button" class="btn ghost" data-close>Annulla</button><button class="btn">Collega</button></div></form>', function(d){
+        var c=client(cid); if(!c) return;
+        var n=d.n||"Documento"; if(ct==="application/pdf" && !/\.pdf$/i.test(n)) n+=".pdf";
+        c.files=c.files||[]; c.files.push({id:id, name:n, type:ct, size:sz, date:ymd(new Date())});
+        save("clients"); render(); toast("File collegato");
+      });
+    }; });
+  }).catch(function(){ openSheet('<h2>Non disponibile</h2><p>Non riesco a leggere i file adesso.</p><div class="actions"><button class="btn ghost" data-close type="button">Chiudi</button></div>'); });
+}
+function uploadFiles(cid, list){
+  if(!list.length || !cid) return;
+  cap("assets").then(function(assets){
+    if(!assets){ openSheet('<h2>File non disponibili</h2><p>Su questo dispositivo non posso salvare file. Apri l\'app dal link di Claude con l\'accesso fatto.</p><div class="actions"><button class="btn ghost" data-close type="button">Chiudi</button></div>'); return; }
+    var ok=0, bad=[];
+    openSheet('<h2>Carico i file…</h2><div class="spin"></div><p id="upMsg" style="text-align:center;color:var(--muted)"></p>');
+    var chain=Promise.resolve();
+    list.forEach(function(f, i){
+      chain=chain.then(function(){
+        var m=document.getElementById("upMsg"); if(m) m.textContent=(i+1)+" di "+list.length+": "+f.name;
+        var t=fileType(f);
+        if(!t){ bad.push(f.name+" (tipo non supportato)"); return; }
+        if(f.size>20*1048576){ bad.push(f.name+" (più di 20 MB)"); return; }
+        return assets.upload(f,{type:t}).then(function(r){
+          var c=client(cid); if(!c) return;
+          c.files=c.files||[]; c.files.push({id:r.id, name:f.name, type:r.contentType||t, size:r.sizeBytes||f.size, date:ymd(new Date())});
+          ok++; save("clients");
+        }).catch(function(e){ bad.push(f.name+(e&&e.code==="quota_or_state"?" (spazio pieno)":"")); });
+      });
+    });
+    chain.then(function(){
+      render();
+      if(!bad.length){ closeSheet(); toast(ok===1?"File aggiunto":ok+" file aggiunti"); }
+      else openSheet('<h2>'+(ok?ok+' file caricati, ':'')+'alcuni non caricati</h2><p>'+bad.map(esc).join("<br>")+'</p><p style="color:var(--muted);font-size:14px">Si possono caricare PDF, immagini, video MP4 e file di testo, fino a 20 MB. I file Word si possono salvare prima in PDF.</p><div class="actions"><button class="btn" data-close type="button">Ok</button></div>');
+    });
+  });
+}
+function fileView(cid, fid){
+  var c=client(cid); if(!c) return; var f=(c.files||[]).find(function(x){return x.id===fid;}); if(!f) return;
+  var src="/_blob/"+encodeURIComponent(f.id), prev="";
+  if(/^image\//.test(f.type)) prev='<img class="preview" src="'+src+'" alt="">';
+  else if(/^video\//.test(f.type)) prev='<video class="preview" src="'+src+'" controls playsinline></video>';
+  openSheet('<h2 style="word-break:break-word">'+esc(f.name)+'</h2>'+prev+'<p style="margin:0 0 12px;color:var(--muted);font-size:14px">'+esc(fmtSize(f.size))+' · aggiunto il '+esc(fmtShort(f.date))+'</p>'+
+    '<div class="actions" style="flex-direction:column"><button class="btn full" id="dlF" type="button">Scarica e apri sul telefono</button>'+
+    '<a class="btn ghost full" style="display:block;text-align:center;text-decoration:none" href="'+src+'" target="_blank" rel="noopener">Apri nel browser</a>'+
+    '<div class="actions" style="margin:0"><button class="btn danger" id="delF" type="button" style="flex:1">Elimina</button><button class="btn ghost" data-close type="button" style="flex:1">Chiudi</button></div></div>'+
+    '<p id="fMsg" style="color:var(--muted);font-size:14px;margin:10px 0 0"></p>');
+  document.getElementById("dlF").onclick=function(){
+    var b=this, msg=document.getElementById("fMsg"); b.disabled=true; msg.textContent="Preparo il file…";
+    Promise.all([fetch(src).then(function(r){ if(!r.ok) throw 0; return r.blob(); }), cap("downloads")]).then(function(r){
+      if(!r[1]) throw {code:"unavailable"};
+      return r[1].save({filename:f.name, data:r[0]});
+    }).then(function(){ b.disabled=false; msg.textContent="Salvato nei Download: aprilo dalla notifica o dall'app File."; })
+    .catch(function(e){ b.disabled=false; msg.textContent=(e&&e.code==="declined")?"":(e&&e.code==="rejected_extension")?"Questo tipo di file non si può scaricare: usa «Apri nel browser».":"Non riesco a scaricarlo: prova «Apri nel browser»."; });
+  };
+  document.getElementById("delF").onclick=function(){
+    confirmSheet("Eliminare "+f.name+"?","Elimina",function(){
+      var cc=client(cid); if(cc){ cc.files=(cc.files||[]).filter(function(x){return x.id!==fid;}); save("clients"); render(); }
+      cap("assets").then(function(a){ if(a) return a.delete(fid); }).catch(function(){});
+      toast("File eliminato");
+    });
+  };
+}
+
+/* ---------- messaggio pre-compilato ---------- */
+var ICON_MSG='<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.4 8.4 0 01-12.3 7.5L3 21l2-5.5A8.4 8.4 0 1121 11.5z"/></svg>';
+function waPhone(p){
+  var d=String(p||"").replace(/[^\d+]/g,"");
+  if(d.indexOf("+")===0) return d.slice(1);
+  if(d.indexOf("00")===0) return d.slice(2);
+  if(/^3\d{8,9}$/.test(d) || /^0\d{5,10}$/.test(d)) return "39"+d;
+  return d;
+}
+function nextEvent(cid){ var t=ymd(new Date()); return state.events.filter(function(e){return e.clientId===cid && e.date>=t;}).sort(evSort)[0]; }
+function fillMsg(text, c){
+  var e=nextEvent(c.id), giorno="", ora="";
+  if(e){ var dd=Math.round((parseYmd(e.date).getTime()-parseYmd(ymd(new Date())).getTime())/86400000); giorno = dd===0 ? "oggi" : dd===1 ? "domani" : fmtDate(e.date); ora=e.time||""; }
+  return text.replace(/\{nome\}/g, c.name.trim()).replace(/\{giorno\}/g, giorno||"…")
+    .replace(/\{ alle ora\}/g, ora ? " alle "+ora : "").replace(/\{ora\}/g, ora||"…");
+}
+function tplListSheet(back){
+  var h='<h2>I tuoi messaggi</h2><div class="card">'+tpl.list.map(function(t){ return '<button class="fl" data-tpl="'+esc(t.id)+'"><div class="fn"><b>'+esc(t.name)+'</b><small style="display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(t.text)+'</small></div></button>'; }).join('')+'</div>'+
+    '<div class="actions"><button class="btn full" id="tplNew" type="button">+ Nuovo messaggio</button></div>'+
+    '<p style="color:var(--muted);font-size:13px;margin:8px 0">Nel testo puoi usare: {nome} = nome del cliente · {firma} = il tuo nome · {giorno} = oggi / domani / data dell\'appuntamento · {ora} = ora. «{ alle ora}» scrive « alle 15:00» solo se c\'è l\'ora.</p>'+
+    '<div class="actions"><button class="btn ghost full" id="tplBack" type="button">'+(back?'Indietro':'Chiudi')+'</button></div>';
+  openSheet(h);
+  $sheet.querySelectorAll("[data-tpl]").forEach(function(b){ b.onclick=function(){ tplForm(tpl.list.find(function(t){return t.id===b.dataset.tpl;}), back); }; });
+  document.getElementById("tplNew").onclick=function(){ tplForm(null, back); };
+  document.getElementById("tplBack").onclick=function(){ if(back) back(); else closeSheet(); };
+}
+function tplForm(t, back){
+  var isNew=!t; t=t||{};
+  openSheet('<h2>'+(isNew?'Nuovo messaggio':'Modifica messaggio')+'</h2><form>'+
+    '<label class="field"><span>Nome (per sceglierlo)</span><input name="name" value="'+esc(t.name)+'" placeholder="Es. Preventivo pronto"></label>'+
+    '<label class="field"><span>Testo</span><textarea name="text" style="min-height:120px" placeholder="Buongiorno {nome}, …">'+esc(t.text||"Buongiorno {nome}, ")+'</textarea></label>'+
+    '<div class="actions">'+(isNew?'<button type="button" class="btn ghost" id="tplCancel">Annulla</button>':'<button type="button" class="btn danger" id="tplDel">Elimina</button>')+'<button class="btn">Salva</button></div></form>',
+  function(d){
+    if(!d.text) return false;
+    if(isNew) tpl.list.push({id:uid(), name:d.name||"Messaggio", text:d.text});
+    else { var x=tpl.list.find(function(y){return y.id===t.id;}); if(x){ x.name=d.name||"Messaggio"; x.text=d.text; } }
+    cacheTpl(); writeSettings(); toast("Messaggio salvato"); setTimeout(function(){ tplListSheet(back); },0);
+  });
+  var cn=document.getElementById("tplCancel"); if(cn) cn.onclick=function(){ tplListSheet(back); };
+  var dl=document.getElementById("tplDel"); if(dl) dl.onclick=function(){
+    if(tpl.list.length<=1){ toast("Serve almeno un messaggio"); return; }
+    tpl.list=tpl.list.filter(function(y){return y.id!==t.id;}); cacheTpl(); writeSettings(); toast("Messaggio eliminato"); tplListSheet(back);
+  };
+}
+function msgSheet(cid, selId){
+  var c=client(cid); if(!c) return;
+  var ph=waPhone(c.phone), e=nextEvent(c.id);
+  var sel = tpl.list.find(function(t){return t.id===selId;}) || (e ? tpl.list.find(function(t){return /\{giorno\}|\{ora\}|\{ alle ora\}/.test(t.text);}) : null) || tpl.list.find(function(t){return !/\{giorno\}|\{ora\}|\{ alle ora\}/.test(t.text);}) || tpl.list[0];
+  openSheet('<h2>Messaggio a '+esc(c.name)+'</h2>'+
+    '<div class="field"><span style="display:block;font-size:13px;color:var(--muted);font-weight:600;margin-bottom:6px">Scegli il messaggio</span><div id="tplChips" style="display:flex;flex-wrap:wrap;gap:6px">'+
+      tpl.list.map(function(t){ var on=t.id===sel.id; return '<button type="button" data-chip="'+esc(t.id)+'" style="padding:8px 12px;border-radius:99px;font-size:14px;font-weight:600;border:1px solid '+(on?'var(--accent)':'var(--line)')+';background:'+(on?'var(--accent)':'var(--card)')+';color:'+(on?'#fff':'var(--ink)')+'">'+esc(t.name)+'</button>'; }).join('')+
+    '</div></div>'+
+    '<label class="field"><span>Testo (puoi modificarlo)</span><textarea id="msgTx" style="min-height:120px">'+esc(fillMsg(sel.text, c))+'</textarea></label>'+
+    '<div class="actions" style="flex-direction:column">'+
+    '<a class="btn full" id="waGo" style="display:block;text-align:center;text-decoration:none;background:#25a35a" target="_blank" rel="noopener" href="#">'+ICON_MSG.replace('width="22" height="22"','width="18" height="18" style="vertical-align:-3px;margin-right:8px"')+'Invia con WhatsApp</a>'+
+    '<a class="btn ghost full" id="smsGo" style="display:block;text-align:center;text-decoration:none" href="#">Invia come SMS</a>'+
+    '<div class="actions" style="margin:0"><button class="btn ghost" type="button" id="cpMsg" style="flex:1">Copia testo</button><button class="btn ghost" type="button" id="manMsg" style="flex:1">Gestisci messaggi</button></div>'+
+    '<button class="btn ghost full" type="button" data-close>Annulla</button></div>'+
+    '<p style="color:var(--muted);font-size:13px;margin:8px 0 0">Numero: '+esc(c.phone)+'</p><p id="msgInfo" style="color:var(--muted);font-size:13px;margin:4px 0 0"></p>');
+  var tx=document.getElementById("msgTx"), wa=document.getElementById("waGo"), sms=document.getElementById("smsGo");
+  function upd(){ wa.href="https://wa.me/"+ph+"?text="+encodeURIComponent(tx.value); sms.href="sms:"+String(c.phone).replace(/[^\d+]/g,"")+"?body="+encodeURIComponent(tx.value); }
+  tx.addEventListener("input", upd); upd();
+  $sheet.querySelectorAll("[data-chip]").forEach(function(b){ b.onclick=function(){ msgSheet(cid, b.dataset.chip); }; });
+  document.getElementById("manMsg").onclick=function(){ tplListSheet(function(){ msgSheet(cid, sel.id); }); };
+  sms.addEventListener("click", function(){ document.getElementById("msgInfo").textContent="Se l'SMS non si apre, usa «Copia testo» e incollalo nei Messaggi."; });
+  document.getElementById("cpMsg").onclick=function(){ var m=document.getElementById("msgInfo"); Promise.resolve().then(function(){ return navigator.clipboard.writeText(tx.value); }).then(function(){ m.textContent="Testo copiato."; }).catch(function(){ m.textContent="Non riesco a copiare su questo telefono."; }); };
+}
+
+/* ---------- link manuali / tutorial ---------- */
+var ICON_LINK='<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;margin-right:8px"><path d="M10 14a5 5 0 007 0l3-3a5 5 0 00-7-7l-1 1"/><path d="M14 10a5 5 0 00-7 0l-3 3a5 5 0 007 7l1-1"/></svg>';
+function linkHost(u){ try{ var h=new URL(u).hostname.replace(/^www\.|^m\./,""); return /youtu\.?be/.test(h)?"YouTube":h; }catch(e){ return u; } }
+function linkForm(cid, l){
+  var isNew=!l; l=l||{};
+  openSheet('<h2>'+(isNew?'Aggiungi link':'Modifica link')+'</h2><form>'+
+    '<label class="field"><span>Link (incolla qui)</span><input name="url" type="text" inputmode="url" autocomplete="off" autofocus value="'+esc(l.url)+'" placeholder="https://…"></label>'+
+    '<label class="field"><span>Nome</span><input name="name" value="'+esc(l.name)+'" placeholder="Es. Manuale cancello, Video programmazione telecomando"></label>'+
+    '<p id="lkErr" style="color:var(--warn);font-size:14px;margin:-4px 0 8px"></p>'+
+    '<div class="actions">'+(isNew?'<button type="button" class="btn ghost" data-close>Annulla</button>':'<button type="button" class="btn danger" id="delL">Elimina</button>')+'<button class="btn">Salva</button></div></form>',
+  function(d){
+    var u=(d.url||"").trim(), m=u.match(/https?:\/\/\S+/i);
+    if(m) u=m[0]; else if(u && !/^[a-z]+:/i.test(u)) u="https://"+u;
+    var ok=false; try{ var p=new URL(u); ok=/^https?:$/.test(p.protocol) && p.hostname.indexOf(".")>0; }catch(e){}
+    if(!ok){ document.getElementById("lkErr").textContent="Questo non sembra un link valido."; return false; }
+    var c=client(cid); if(!c) return;
+    var name=d.name || (linkHost(u)==="YouTube" ? "Video YouTube" : linkHost(u));
+    c.links=c.links||[];
+    if(isNew) c.links.push({id:uid(), url:u, name:name, date:ymd(new Date())});
+    else { var t=c.links.find(function(x){return x.id===l.id;}); if(t){ t.url=u; t.name=name; } }
+    save("clients"); render(); toast("Link salvato");
+  });
+  var del=document.getElementById("delL");
+  if(del) del.onclick=function(){ var c=client(cid); if(c){ c.links=(c.links||[]).filter(function(x){return x.id!==l.id;}); save("clients"); } closeSheet(); render(); toast("Link eliminato"); };
+}
+
+/* ---------- cose da ricordare ---------- */
+var ICON_MEMO='<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;margin-right:8px"><path d="M9 4h6l-1 6 3 3H7l3-3z"/><path d="M12 13v8"/></svg>';
+function memoForm(cid, m){
+  var isNew=!m; m=m||{};
+  openSheet('<h2>'+(isNew?'Cosa da ricordare':'Modifica')+'</h2><form>'+
+    '<label class="field"><span>Da ricordare</span><textarea name="text" required autofocus placeholder="Es. il cancello si apre col codice 1234, il cane è nel giardino, vuole la fattura a nome della ditta…">'+esc(m.text)+'</textarea></label>'+
+    '<div class="actions">'+(isNew?'<button type="button" class="btn ghost" data-close>Annulla</button>':'<button type="button" class="btn danger" id="delM">Elimina</button>')+'<button class="btn">Salva</button></div></form>',
+  function(d){
+    if(!d.text) return false;
+    var c=client(cid); if(!c) return;
+    c.memos=c.memos||[];
+    if(isNew) c.memos.push({id:uid(), text:d.text, date:ymd(new Date())});
+    else { var t=c.memos.find(function(x){return x.id===m.id;}); if(t) t.text=d.text; }
+    save("clients"); render(); toast("Salvato");
+  });
+  var del=document.getElementById("delM");
+  if(del) del.onclick=function(){ var c=client(cid); if(c){ c.memos=(c.memos||[]).filter(function(x){return x.id!==m.id;}); save("clients"); } closeSheet(); render(); toast("Eliminato"); };
+}
+
+/* ---------- position ---------- */
+var ICON_PIN='<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;margin-right:8px"><path d="M12 21s-7-6.2-7-11.5a7 7 0 0114 0C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg>';
+var PIN_SM='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-6.2-7-11.5a7 7 0 0114 0C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg>';
+function mapsOpen(p){ return (p.lat!=null) ? "https://www.google.com/maps/search/?api=1&query="+p.lat+","+p.lng : p.link; }
+function mapsNav(p){ return (p.lat!=null) ? "https://www.google.com/maps/dir/?api=1&destination="+p.lat+","+p.lng : p.link; }
+function parsePos(txt){
+  txt=String(txt||"").trim(); if(!txt) return null;
+  var m, ok=function(a,b){ a=parseFloat(a); b=parseFloat(b); return (isFinite(a)&&isFinite(b)&&Math.abs(a)<=90&&Math.abs(b)<=180) ? {lat:+a.toFixed(6), lng:+b.toFixed(6)} : null; };
+  var NUM="(-?\\d{1,3}(?:\\.\\d+)?)";
+  if((m=txt.match(new RegExp("^"+NUM+"\\s*[,; ]\\s*"+NUM+"$")))) return ok(m[1],m[2]);
+  if((m=txt.match(new RegExp("@"+NUM+","+NUM)))) return ok(m[1],m[2]);
+  if((m=txt.match(new RegExp("[?&](?:q|query|ll|destination|daddr)=(?:loc:)?"+NUM+"(?:,|%2C)\\s*"+NUM,"i")))) return ok(m[1],m[2]);
+  if((m=txt.match(new RegExp("!3d"+NUM+"!4d"+NUM)))) return ok(m[1],m[2]);
+  if((m=txt.match(/https?:\/\/\S+/))) { var u=m[0]; if(/google\.|goo\.gl|maps\.app/i.test(u)) return {lat:null,lng:null,link:u}; }
+  if((m=txt.match(new RegExp(NUM+"\\s*,\\s*"+NUM)))) return ok(m[1],m[2]);
+  return null;
+}
+function setPos(cid, p){
+  var c=client(cid); if(!c) return;
+  p.date=ymd(new Date()); c.pos=p; save("clients"); closeSheet(); render(); toast("Posizione salvata");
+}
+function posSheet(cid){
+  var c=client(cid); if(!c) return;
+  var h='<h2>Segna posizione</h2>'+
+    '<button class="btn full" id="gpsP" type="button">'+ICON_PIN+'Usa la mia posizione attuale</button>'+
+    '<p id="gpsMsg" style="color:var(--muted);font-size:14px;margin:8px 0 14px"></p>'+
+    '<div class="card" style="padding:12px 14px;margin-bottom:12px;font-size:14px"><b>Se il telefono non la dà:</b><br>1. Apri <a href="https://www.google.com/maps" target="_blank" rel="noopener">Google Maps</a><br>2. Tocca il pallino blu (o tieni premuto sul punto)<br>3. Tocca <b>Condividi</b> → <b>Copia</b><br>4. Torna qui e incolla sotto</div>'+
+    '<form><label class="field"><span>Link di Google Maps o coordinate</span><input name="p" placeholder="Incolla qui…" autocomplete="off"></label>'+
+    '<p id="posErr" style="color:var(--warn);font-size:14px;margin:-4px 0 8px"></p>'+
+    '<div class="actions">'+(c.pos?'<button type="button" class="btn danger" id="rmP">Rimuovi</button>':'<button type="button" class="btn ghost" data-close>Annulla</button>')+'<button class="btn">Salva</button></div></form>';
+  openSheet(h, function(d){
+    var p=parsePos(d.p);
+    if(!p){ document.getElementById("posErr").textContent="Non riconosco questo link. Incolla il link copiato da Google Maps."; return false; }
+    setPos(cid, p); return false;
+  });
+  var rm=document.getElementById("rmP"); if(rm) rm.onclick=function(){ var cc=client(cid); if(cc){ delete cc.pos; save("clients"); } closeSheet(); render(); toast("Posizione rimossa"); };
+  document.getElementById("gpsP").onclick=function(){
+    var msg=document.getElementById("gpsMsg"), b=this;
+    var fail=function(){ b.disabled=false; msg.textContent="Il telefono non permette di leggere la posizione da qui: usa Google Maps come spiegato sotto."; };
+    if(!navigator.geolocation){ fail(); return; }
+    b.disabled=true; msg.textContent="Cerco la posizione…";
+    var done=false, t=setTimeout(function(){ if(!done){ done=true; fail(); } }, 12000);
+    try{
+      navigator.geolocation.getCurrentPosition(function(pos){
+        if(done) return; done=true; clearTimeout(t);
+        setPos(cid, {lat:+pos.coords.latitude.toFixed(6), lng:+pos.coords.longitude.toFixed(6)});
+      }, function(){ if(done) return; done=true; clearTimeout(t); fail(); }, {enableHighAccuracy:true, timeout:10000, maximumAge:0});
+    }catch(e){ done=true; clearTimeout(t); fail(); }
+  };
+}
+
+/* ---------- shopping list → PDF ---------- */
+var PDF_TITLE="Lista";
+var ICON_PDF='<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;margin-right:8px"><path d="M14 3H7a2 2 0 00-2 2v14a2 2 0 002 2h10a2 2 0 002-2V8z"/><path d="M14 3v5h5M12 18v-6M9 15l3 3 3-3"/></svg>';
+function pdfItems(onlyOpen, src){
+  var all=src(), open=all.filter(function(i){return !i.done;});
+  return (onlyOpen && open.length) ? open : all;
+}
+function pdfSheet(src){
+  if(typeof src!=="function") src=function(){ return state.shopping; };
+  var open=src().filter(function(i){return !i.done;}).length, tot=src().length;
+  var h='<h2>Condividi la lista</h2><p style="margin:-6px 0 12px;color:var(--muted);font-size:14px">Il PDF avrà sempre l\'intestazione <b>'+esc(PDF_TITLE)+'</b>.</p>';
+  if(open && open<tot) h+='<label class="opt"><input type="checkbox" id="onlyOpen" checked>Solo le cose ancora da prendere ('+open+')</label>';
+  h+='<div class="actions" style="flex-direction:column"><button class="btn full" id="mkPdf" type="button">'+ICON_PDF+'Scarica PDF</button>'+
+     '<button class="btn ghost full" id="cpTxt" type="button">Copia come testo (per WhatsApp)</button>'+
+     '<button class="btn ghost full" data-close type="button">Annulla</button></div><p id="pdfMsg" style="color:var(--muted);font-size:14px;margin:10px 0 0"></p>';
+  openSheet(h);
+  function only(){ var el=document.getElementById("onlyOpen"); return el ? el.checked : true; }
+  var msg=document.getElementById("pdfMsg");
+  document.getElementById("mkPdf").onclick=function(){
+    var b=this; b.disabled=true; msg.textContent="Preparo il PDF…";
+    var blob;
+    try{ blob=buildPdf(pdfItems(only(), src)); }catch(e){ b.disabled=false; msg.textContent="Non riesco a creare il PDF. Controlla la connessione e riprova."; return; }
+    cap("downloads").then(function(dl){
+      if(!dl) throw {code:"unavailable"};
+      var d=new Date();
+      return dl.save({filename: PDF_TITLE+" "+pad(d.getDate())+"-"+pad(d.getMonth()+1)+"-"+d.getFullYear()+".pdf", data: blob});
+    }).then(function(){
+      closeSheet(); toast("PDF salvato");
+      openSheet('<h2>PDF pronto</h2><p>Lo trovi nei <b>Download</b> del telefono (o nella notifica di download). Aprilo e tocca <b>Condividi</b> per mandarlo con WhatsApp, email o altro.</p><div class="actions"><button class="btn" data-close type="button">Ok</button></div>');
+    }).catch(function(e){
+      b.disabled=false;
+      msg.textContent = (e&&e.code==="declined") ? "" : "Il download non è disponibile qui. Usa «Copia come testo».";
+    });
+  };
+  document.getElementById("cpTxt").onclick=function(){
+    var d=new Date(), lines=[PDF_TITLE, pad(d.getDate())+"/"+pad(d.getMonth()+1)+"/"+d.getFullYear(), ""];
+    pdfItems(only(), src).forEach(function(i){ lines.push("• "+i.text+(i.qty?" — "+i.qty:"")); });
+    var txt=lines.join("\n");
+    Promise.resolve().then(function(){ return navigator.clipboard.writeText(txt); }).then(function(){ msg.textContent="Copiato! Ora incollalo nella chat."; }).catch(function(){ msg.textContent="Non riesco a copiare su questo telefono."; });
+  };
+}
+function buildPdf(items){
+  var J=window.jspdf && window.jspdf.jsPDF; if(!J) throw new Error("jspdf");
+  var doc=new J({unit:"mm", format:"a4"}), W=210, M=20, y=0;
+  var d=new Date(), dateTxt=GIORNI[d.getDay()]+" "+d.getDate()+" "+MESI[d.getMonth()]+" "+d.getFullYear();
+  function header(first){
+    doc.setFillColor(31,95,91); doc.rect(0,0,W,first?34:18,"F");
+    doc.setTextColor(255,255,255); doc.setFont("helvetica","bold");
+    if(first){
+      doc.setFontSize(22); doc.text(PDF_TITLE, M, 17);
+      doc.setFont("helvetica","normal"); doc.setFontSize(11); doc.text(dateTxt.charAt(0).toUpperCase()+dateTxt.slice(1), M, 26);
+      y=48;
+    } else {
+      doc.setFontSize(12); doc.text(PDF_TITLE+" (continua)", M, 11.5); y=30;
+    }
+    doc.setTextColor(29,35,33);
+  }
+  header(true);
+  doc.setFontSize(10); doc.setTextColor(107,115,111); doc.setFont("helvetica","normal");
+  doc.text(items.length+(items.length===1?" articolo":" articoli"), M, y-6); doc.setTextColor(29,35,33);
+  items.forEach(function(it){
+    var qtyW = it.qty ? doc.setFontSize(11).getTextWidth(it.qty)+4 : 0;
+    doc.setFontSize(12);
+    var lines=doc.splitTextToSize(it.text, W-2*M-10-qtyW);
+    var hgt=Math.max(1,lines.length)*5.6+4.4;
+    if(y+hgt>280){ doc.addPage(); header(false); }
+    doc.setDrawColor(150,150,150); doc.setLineWidth(0.4); doc.roundedRect(M, y-4, 4.6, 4.6, 0.8, 0.8, "S");
+    if(it.done){ doc.setDrawColor(31,95,91); doc.setLineWidth(0.7); doc.line(M+1,y-1.7,M+2,y-0.4); doc.line(M+2,y-0.4,M+3.8,y-3.2); }
+    doc.setFont("helvetica","normal"); doc.setTextColor(it.done?140:29, it.done?140:35, it.done?140:33);
+    doc.text(lines, M+9, y);
+    if(it.qty){ doc.setFontSize(11); doc.setTextColor(31,95,91); doc.setFont("helvetica","bold"); doc.text(it.qty, W-M, y, {align:"right"}); }
+    y+=hgt-3.2;
+    doc.setDrawColor(230,226,217); doc.setLineWidth(0.2); doc.line(M, y, W-M, y);
+    y+=6;
+  });
+  var n=doc.getNumberOfPages();
+  for(var p=1;p<=n;p++){ doc.setPage(p); doc.setFontSize(9); doc.setTextColor(150,150,150); doc.setFont("helvetica","normal"); doc.text("Pagina "+p+" di "+n, W-M, 290, {align:"right"}); }
+  return doc.output("blob");
+}
+
+/* ---------- events ---------- */
+document.querySelectorAll("nav.tabs button").forEach(function(b){ b.onclick=function(){ if(view.tab===b.dataset.tab && b.dataset.tab==="clients") view.clientId=null; view.tab=b.dataset.tab; render(); window.scrollTo(0,0); }; });
+$back.onclick=function(){ view.clientId=null; render(); };
+$fab.onclick=function(){ if(view.tab==="clients") clientForm(); else if(view.tab==="calendar") eventForm({date:view.sel}); };
+$main.addEventListener("click", function(ev){
+  var le=ev.target.closest("[data-linkedit]"); if(le){ var lc=client(view.clientId); var ll=lc&&(lc.links||[]).find(function(x){return x.id===le.dataset.linkedit;}); if(ll) linkForm(view.clientId, ll); return; }
+  var fb=ev.target.closest("[data-file]"); if(fb){ fileView(view.clientId, fb.dataset.file); return; }
+  var ph=ev.target.closest("[data-photo]"); if(ph){ photoView(view.clientId, ph.dataset.photo); return; }
+  if(ev.target.closest("a")) return;
+  var mb=ev.target.closest("[data-msg]"); if(mb){ msgSheet(mb.dataset.msg); return; }
+  var o=ev.target.closest("[data-open]"); if(o){ view.clientId=o.dataset.open; render(); window.scrollTo(0,0); return; }
+  var d=ev.target.closest("[data-day]"); if(d){ view.sel=d.dataset.day; var dd=parseYmd(view.sel); if(dd.getMonth()!==view.month.getMonth()) view.month=new Date(dd.getFullYear(),dd.getMonth(),1); renderCalendar(); return; }
+  var e=ev.target.closest("[data-ev]"); if(e){ var x=state.events.find(function(z){return z.id===e.dataset.ev;}); if(x) eventForm(x); return; }
+  var a=ev.target.closest("[data-act]"); if(a){
+    var row=a.closest(".check"), scope=row.dataset.scope, id=row.dataset.id;
+    var cc = scope==="shop" ? null : client(view.clientId);
+    var arr = scope==="shop" ? state.shopping : (scope==="cshop" ? (cc.shop||[]) : (cc.items||[]));
+    var key = scope==="shop" ? "shopping" : "clients";
+    if(a.dataset.act==="toggle"){ var it=arr.find(function(i){return i.id===id;}); if(it) it.done=!it.done; }
+    else { var idx=arr.findIndex(function(i){return i.id===id;}); if(idx>=0) arr.splice(idx,1); }
+    save(key); render();
+  }
+});
+
+/* ---------- password ---------- */
+var TPL_DEF={list:[
+  {id:"t1", name:"Promemoria appuntamento", text:"Buongiorno {nome}, le ricordo l'appuntamento di {giorno}{ alle ora}. A presto, {firma}"},
+  {id:"t2", name:"Sto arrivando", text:"Buongiorno {nome}, sono {firma}: sto arrivando, sarò da lei a breve."},
+  {id:"t3", name:"Lavoro terminato", text:"Buongiorno {nome}, il lavoro è terminato. Per qualsiasi cosa resto a disposizione. {firma}"},
+  {id:"t4", name:"Saluto", text:"Buongiorno {nome}, sono {firma}. "}
+]};
+function normTpl(t){
+  if(t && Array.isArray(t.list) && t.list.length) return {list:t.list.filter(function(x){return x&&x.text;}).map(function(x){return {id:String(x.id||uid()), name:String(x.name||"Messaggio"), text:String(x.text)};})};
+  if(t && t.app){ var l=clone(TPL_DEF.list); l[0].text=String(t.app); if(t.gen) l[3].text=String(t.gen); return {list:l}; }
+  return clone(TPL_DEF);
+}
+var tpl=clone(TPL_DEF);
+try{ var tl=JSON.parse(localStorage.getItem("agendaClienti.tpl")||"null"); if(tl) tpl=normTpl(tl); }catch(e){}
+function cacheTpl(){ try{ localStorage.setItem("agendaClienti.tpl", JSON.stringify(tpl)); }catch(e){} }
+var LS_PW="agendaClienti.pw", pw=null, setRef=null, setKnown=false, setWriting=false, unlocked=false, hiddenAt=0;
+try{ pw=JSON.parse(localStorage.getItem(LS_PW)||"null"); }catch(e){}
+function cachePw(){ try{ localStorage.setItem(LS_PW, JSON.stringify(pw)); }catch(e){} }
+function writeSettings(){
+  if(!setRef || !pw) return; setWriting=true;
+  setRef.set({pwHash:pw.pwHash, salt:pw.salt, tpl:clone(tpl), updated:Date.now()}).catch(function(){}).then(function(){ setWriting=false; });
+}
+function hashPw(p, salt){
+  var data=salt+"|"+p;
+  if(window.crypto && crypto.subtle && window.TextEncoder){
+    return crypto.subtle.digest("SHA-256", new TextEncoder().encode(data)).then(function(b){ return Array.from(new Uint8Array(b)).map(function(x){return x.toString(16).padStart(2,"0");}).join(""); });
+  }
+  var h=5381; for(var i=0;i<data.length;i++){ h=((h<<5)+h+data.charCodeAt(i))|0; } return Promise.resolve("s"+(h>>>0).toString(16));
+}
+function newSalt(){ try{ var a=new Uint8Array(12); crypto.getRandomValues(a); return Array.from(a).map(function(x){return x.toString(16).padStart(2,"0");}).join(""); }catch(e){ return uid()+uid(); } }
+var $lock=document.getElementById("lock"), $lockBox=document.getElementById("lockBox");
+var LOCK_IC=$lockBox.querySelector(".ic").outerHTML;
+function showLock(html){ $lockBox.innerHTML=LOCK_IC+html; $lock.classList.remove("hide"); closeSheet(); var i=$lockBox.querySelector("input"); if(i) setTimeout(function(){ i.focus(); },60); }
+function unlock(){ unlocked=true; $lock.classList.add("hide"); $lockBox.innerHTML=""; }
+function lockScreen(){
+  unlocked=false;
+  showLock('<h2>Agenda Clienti</h2><p>Inserisci la password per entrare</p><form id="lf"><input type="password" inputmode="numeric" pattern="[0-9]*" name="p" placeholder="Password" autocomplete="current-password"><div class="err" id="lerr"></div></form><button type="button" id="kbSwitch" style="color:var(--muted);font-size:13px;text-decoration:underline;margin-top:6px">La mia password ha anche lettere</button><button type="button" id="forgot" style="margin-top:18px;font-size:13px;color:var(--muted);text-decoration:underline">Password dimenticata?</button>');
+  var lin=document.querySelector("#lf input");
+  document.getElementById("forgot").onclick=forgotScreen;
+  document.getElementById("kbSwitch").onclick=function(){ lin.setAttribute("inputmode","text"); lin.removeAttribute("pattern"); lin.blur(); setTimeout(function(){ lin.focus(); },50); this.remove(); };
+  lin.addEventListener("input", function(){
+    var v=lin.value; document.getElementById("lerr").textContent="";
+    if(!v || !pw) return;
+    hashPw(v, pw.salt).then(function(h){ if(h===pw.pwHash && lin.value===v && !unlocked) unlock(); });
+  });
+  document.getElementById("lf").onsubmit=function(e){
+    e.preventDefault(); var v=this.p.value, f=this;
+    if(!v) return;
+    hashPw(v, pw.salt).then(function(h){
+      if(h===pw.pwHash){ unlock(); }
+      else { document.getElementById("lerr").textContent="Password sbagliata"; f.p.value=""; $lockBox.classList.remove("shake"); void $lockBox.offsetWidth; $lockBox.classList.add("shake"); f.p.focus(); }
+    });
+  };
+}
+function setupScreen(){
+  unlocked=false;
+  showLock('<h2>Crea la tua password</h2><p>Ti verrà chiesta ogni volta che apri l\'app. Scrivila da qualche parte per non dimenticarla.</p><form id="sf"><input type="password" inputmode="numeric" pattern="[0-9]*" name="a" placeholder="Nuova password" autocomplete="new-password"><input type="password" inputmode="numeric" pattern="[0-9]*" name="b" placeholder="Ripeti la password" autocomplete="new-password"><div class="err" id="serr"></div><button class="btn">Salva ed entra</button></form>');
+  document.getElementById("sf").onsubmit=function(e){
+    e.preventDefault(); var a=this.a.value, b=this.b.value, err=document.getElementById("serr");
+    if(a.length<4){ err.textContent="Almeno 4 caratteri"; return; }
+    if(a!==b){ err.textContent="Le due password non sono uguali"; return; }
+    var salt=newSalt();
+    hashPw(a, salt).then(function(h){ pw={pwHash:h, salt:salt}; cachePw(); writeSettings(); unlock(); toast("Password salvata"); });
+  };
+}
+var lockTimer=setTimeout(function(){ setKnown=true; lockDecide(); }, 6000);
+function lockDecide(){
+  if(unlocked) return;
+  if(pw && pw.pwHash){ if(!document.getElementById("lf")) lockScreen(); return; }
+  if(setKnown){ clearTimeout(lockTimer); if(!document.getElementById("sf")) setupScreen(); }
+}
+document.addEventListener("visibilitychange", function(){
+  if(document.hidden){ hiddenAt=Date.now(); }
+  else if(unlocked && pw && pw.pwHash && hiddenAt && Date.now()-hiddenAt>5*60*1000){ lockScreen(); }
+});
+function exportData(msg){
+  var d=new Date();
+  var data={app:"agenda-clienti", version:1, exported:new Date().toISOString(), clients:clone(state.clients), shopping:clone(state.shopping), events:clone(state.events), tpl:clone(tpl), name:(typeof ownerName!=="undefined"?ownerName:"")};
+  var fn="agenda-backup-"+d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate())+".json";
+  msg.textContent="Preparo il file…";
+  cap("downloads").then(function(dl){
+    if(!dl) throw {code:"unavailable"};
+    return dl.save({filename:fn, data:JSON.stringify(data, null, 1)});
+  }).then(function(){ msg.textContent="File salvato: "+fn+" (lo trovi nei Download)."; })
+  .catch(function(e){ msg.textContent=(e&&e.code==="declined")?"":"Non riesco a salvare il file qui."; });
+}
+function settingsSheet(){
+  openSheet('<h2>Impostazioni</h2><div class="section" style="margin-top:0">Cambia password</div><form>'+
+    '<label class="field"><span>Password attuale</span><input type="password" inputmode="numeric" pattern="[0-9]*" name="old" autocomplete="current-password"></label>'+
+    '<label class="field"><span>Nuova password</span><input type="password" inputmode="numeric" pattern="[0-9]*" name="a" autocomplete="new-password"></label>'+
+    '<label class="field"><span>Ripeti la nuova password</span><input type="password" inputmode="numeric" pattern="[0-9]*" name="b" autocomplete="new-password"></label>'+
+    '<p id="cerr" style="color:var(--warn);font-size:14px;margin:-4px 0 8px"></p>'+
+    '<div class="actions"><button type="button" class="btn ghost" data-close>Chiudi</button><button class="btn">Cambia password</button></div></form>'+
+    '<div class="section">Messaggi ai clienti</div><button type="button" class="btn ghost full" id="tplMan">Gestisci messaggi ('+tpl.list.length+')</button>'+
+    '<div class="section">Copia dei dati</div><button type="button" class="btn ghost full" id="expData">Esporta tutti i dati</button>'+
+    '<p id="expMsg" style="color:var(--muted);font-size:13px;margin:8px 0 0">Crea un file con clienti, appuntamenti, liste e messaggi: serve per la copia di sicurezza o per passare alla nuova app.</p>'+
+    '<div class="section">Sicurezza</div><button type="button" class="btn ghost full" id="lockNow">Blocca adesso</button>'+
+    '<p style="color:var(--muted);font-size:13px;margin:10px 0 0">L\'app si blocca da sola se resta chiusa per più di 5 minuti.</p>',
+  function(d){
+    var err=document.getElementById("cerr");
+    if(d.a.length<4){ err.textContent="La nuova password deve avere almeno 4 caratteri"; return false; }
+    if(d.a!==d.b){ err.textContent="Le due nuove password non sono uguali"; return false; }
+    hashPw(d.old, pw.salt).then(function(h){
+      if(h!==pw.pwHash){ err.textContent="La password attuale è sbagliata"; return; }
+      var salt=newSalt();
+      return hashPw(d.a, salt).then(function(nh){ pw={pwHash:nh, salt:salt}; cachePw(); writeSettings(); closeSheet(); toast("Password cambiata"); });
+    });
+    return false;
+  });
+  document.getElementById("lockNow").onclick=function(){ closeSheet(); lockScreen(); };
+  document.getElementById("tplMan").onclick=function(){ tplListSheet(); };
+  document.getElementById("expData").onclick=function(){ exportData(document.getElementById("expMsg")); };
+}
+/* ======== VERSIONE INDIPENDENTE: dati sul telefono ======== */
+setKnown=true;
+var LS_NAME="agendaClienti.name";
+var ownerName=""; try{ ownerName=localStorage.getItem(LS_NAME)||""; }catch(e){}
+PDF_TITLE = ownerName ? "Lista "+ownerName : "Lista";
+function setOwnerName(n){ ownerName=n; PDF_TITLE="Lista "+n; try{ localStorage.setItem(LS_NAME,n); }catch(e){} }
+
+function cacheLocal(){ try{ localStorage.setItem(LS, JSON.stringify(state)); setSync("ok","Salvato"); }catch(e){ setSync("err","Memoria piena"); } }
+function save(key){ cacheLocal(); }
+function busy(){ return false; }
+function writeSettings(){}
+function cachePw(){ try{ localStorage.setItem(LS_PW, JSON.stringify(pw)); }catch(e){} }
+function startSync(){
+  setSync("ok","Sul telefono");
+  try{ if(navigator.storage && navigator.storage.persist) navigator.storage.persist(); }catch(e){}
+}
+
+/* --- file e foto: IndexedDB --- */
+var IDBP=null;
+function idb(){
+  if(IDBP) return IDBP;
+  IDBP=new Promise(function(res,rej){
+    var r=indexedDB.open("agendaBlobs",1);
+    r.onupgradeneeded=function(){ r.result.createObjectStore("blobs",{keyPath:"id"}); };
+    r.onsuccess=function(){ res(r.result); }; r.onerror=function(){ rej(r.error); };
+  });
+  return IDBP;
+}
+function idbDo(mode, fn){
+  return idb().then(function(db){ return new Promise(function(res,rej){
+    var tx=db.transaction("blobs",mode), rq=fn(tx.objectStore("blobs")), out;
+    if(rq) rq.onsuccess=function(){ out=rq.result; };
+    tx.oncomplete=function(){ res(out); }; tx.onerror=function(){ rej(tx.error); }; tx.onabort=function(){ rej(tx.error); };
+  }); });
+}
+var localAssets={
+  upload:function(blob,o){
+    var id=(uid()+uid()+uid()).replace(/[^a-z0-9]/g,"").slice(0,32), t=(o&&o.type)||blob.type||"application/octet-stream";
+    var rec={id:id, blob:blob, type:t, size:blob.size, createdAt:new Date().toISOString()};
+    return idbDo("readwrite",function(st){ return st.put(rec); }).then(function(){ return {id:id, url:"", sizeBytes:blob.size, contentType:t}; }, function(){ throw {code:"quota_or_state"}; });
+  },
+  delete:function(id){ return idbDo("readwrite",function(st){ return st.delete(id); }).then(function(){ return {deleted:true}; }); },
+  list:function(){ return idbDo("readonly",function(st){ return st.getAll(); }).then(function(a){ return {assets:(a||[]).map(function(r){ return {id:r.id, contentType:r.type, sizeBytes:r.size, createdAt:r.createdAt}; }), usage:{}}; }); },
+  get:function(id){ return idbDo("readonly",function(st){ return st.get(id); }); }
+};
+function mimeFor(n){ var e=(String(n).split(".").pop()||"").toLowerCase(); return {pdf:"application/pdf",json:"application/json",jpg:"image/jpeg",jpeg:"image/jpeg",png:"image/png",txt:"text/plain",mp4:"video/mp4"}[e]||"application/octet-stream"; }
+function plainDownload(blob,name){
+  var u=URL.createObjectURL(blob), a=document.createElement("a"); a.href=u; a.download=name; document.body.appendChild(a); a.click();
+  setTimeout(function(){ URL.revokeObjectURL(u); a.remove(); }, 5000);
+  return Promise.resolve({status:"saved"});
+}
+var localDownloads={
+  save:function(o){
+    var blob = (o.data instanceof Blob) ? o.data : new Blob([o.data], {type:mimeFor(o.filename)});
+    var file=null; try{ file=new File([blob], o.filename, {type:blob.type||mimeFor(o.filename)}); }catch(e){}
+    if(file && navigator.canShare && navigator.share){
+      var ok=false; try{ ok=navigator.canShare({files:[file]}); }catch(e){}
+      if(ok) return navigator.share({files:[file], title:o.filename}).then(function(){ return {status:"saved"}; }, function(e){ if(e && e.name==="AbortError") throw {code:"declined"}; return plainDownload(blob,o.filename); });
+    }
+    return plainDownload(blob,o.filename);
+  }
+};
+function cap(n){ return Promise.resolve(n==="assets" ? localAssets : n==="downloads" ? localDownloads : null); }
+
+var blobURLs={};
+function hydrateBlobs(){
+  document.querySelectorAll("[data-bid]").forEach(function(el){
+    if(el.dataset.hyd) return; el.dataset.hyd="1";
+    var id=el.dataset.bid;
+    if(blobURLs[id]){ el.src=blobURLs[id]; return; }
+    localAssets.get(id).then(function(r){ if(!r) return; blobURLs[id]=blobURLs[id]||URL.createObjectURL(r.blob); el.src=blobURLs[id]; }).catch(function(){});
+  });
+}
+new MutationObserver(hydrateBlobs).observe(document.body,{childList:true,subtree:true});
+
+/* --- foto: salva con descrizione --- */
+function photoFlow(cid, file){
+  openSheet('<h2>Preparo la foto…</h2><div class="spin"></div>');
+  shrink(file,1800).then(function(blob){
+    var url=URL.createObjectURL(blob);
+    openSheet('<h2>Salva la foto</h2><img class="preview" src="'+url+'" alt=""><form><label class="field"><span>Descrizione (facoltativa)</span><input name="l" placeholder="Es. Bolla n. 123, lista materiale…"></label><div class="actions"><button type="button" class="btn ghost" data-close>Annulla</button><button class="btn">Salva foto</button></div></form>', function(d){
+      savePhoto(cid, blob, (d.l||"").slice(0,60)).then(function(){ toast("Foto salvata"); }).catch(function(){ toast("Foto non salvata: memoria piena?"); });
+    });
+  });
+}
+function photoView(cid, pid){
+  var c=client(cid); if(!c) return; var p=(c.photos||[]).find(function(x){return x.id===pid;}); if(!p) return;
+  openSheet('<h2>'+esc(p.label||"Foto")+'</h2><img class="preview" style="max-height:60vh" data-bid="'+esc(p.id)+'" alt=""><p style="margin:0 0 12px;color:var(--muted);font-size:14px;text-transform:capitalize">'+esc(fmtDate(p.date))+'</p>'+
+    '<div class="actions"><button class="btn danger" id="delP" type="button">Elimina</button><button class="btn ghost" id="shP" type="button">Condividi</button><button class="btn" data-close type="button">Chiudi</button></div>');
+  var blob=null; localAssets.get(pid).then(function(r){ if(r) blob=r.blob; });
+  document.getElementById("shP").onclick=function(){ if(!blob) return; localDownloads.save({filename:(p.label||"foto")+".jpg", data:blob}).catch(function(){}); };
+  document.getElementById("delP").onclick=function(){
+    confirmSheet("Eliminare questa foto?","Elimina",function(){
+      var cc=client(cid); if(cc){ cc.photos=(cc.photos||[]).filter(function(x){return x.id!==pid;}); save("clients"); render(); }
+      localAssets.delete(pid).catch(function(){}); toast("Foto eliminata");
+    });
+  };
+}
+function fileView(cid, fid){
+  var c=client(cid); if(!c) return; var f=(c.files||[]).find(function(x){return x.id===fid;}); if(!f) return;
+  var prev="";
+  if(/^image\//.test(f.type)) prev='<img class="preview" data-bid="'+esc(f.id)+'" alt="">';
+  else if(/^video\//.test(f.type)) prev='<video class="preview" data-bid="'+esc(f.id)+'" controls playsinline></video>';
+  openSheet('<h2 style="word-break:break-word">'+esc(f.name)+'</h2>'+prev+'<p style="margin:0 0 12px;color:var(--muted);font-size:14px">'+esc(fmtSize(f.size))+' · aggiunto il '+esc(fmtShort(f.date))+'</p>'+
+    '<div class="actions" style="flex-direction:column"><a class="btn full" id="openF" style="display:block;text-align:center;text-decoration:none;opacity:.5" target="_blank" rel="noopener">Apri</a>'+
+    '<button class="btn ghost full" id="shF" type="button">Condividi / apri con un\'altra app</button>'+
+    '<div class="actions" style="margin:0"><button class="btn danger" id="delF" type="button" style="flex:1">Elimina</button><button class="btn ghost" data-close type="button" style="flex:1">Chiudi</button></div></div>'+
+    '<p id="fMsg" style="color:var(--muted);font-size:14px;margin:10px 0 0"></p>');
+  var blob=null, op=document.getElementById("openF");
+  localAssets.get(fid).then(function(r){
+    if(!r){ document.getElementById("fMsg").textContent="File non trovato su questo telefono."; return; }
+    blob=r.blob; blobURLs[fid]=blobURLs[fid]||URL.createObjectURL(blob); op.href=blobURLs[fid]; op.style.opacity=1;
+  });
+  document.getElementById("shF").onclick=function(){ if(!blob) return; localDownloads.save({filename:f.name, data:blob}).catch(function(){}); };
+  document.getElementById("delF").onclick=function(){
+    confirmSheet("Eliminare "+f.name+"?","Elimina",function(){
+      var cc=client(cid); if(cc){ cc.files=(cc.files||[]).filter(function(x){return x.id!==fid;}); save("clients"); render(); }
+      localAssets.delete(fid).catch(function(){}); toast("File eliminato");
+    });
+  };
+}
+
+/* --- messaggi con la tua firma --- */
+function fillMsg(text, c){
+  var e=nextEvent(c.id), giorno="", ora="";
+  if(e){ var dd=Math.round((parseYmd(e.date).getTime()-parseYmd(ymd(new Date())).getTime())/86400000); giorno = dd===0 ? "oggi" : dd===1 ? "domani" : fmtDate(e.date); ora=e.time||""; }
+  return text.replace(/\{nome\}/g, c.name.trim()).replace(/\{firma\}/g, ownerName||"").replace(/\{giorno\}/g, giorno||"…")
+    .replace(/\{ alle ora\}/g, ora ? " alle "+ora : "").replace(/\{ora\}/g, ora||"…");
+}
+
+/* --- mappa --- */
+var lmap=null, geoBusy=false;
+function clientLatLng(c){
+  if(c.pos && c.pos.lat!=null) return c.pos;
+  if(c.address && c.geo && c.geo.addr===c.address && c.geo.lat!=null) return c.geo;
+  return null;
+}
+function geocodeMissing(done){
+  if(geoBusy) return;
+  var todo=state.clients.filter(function(c){ return c.address && !(c.pos && c.pos.lat!=null) && !(c.geo && c.geo.addr===c.address); });
+  if(!todo.length) return;
+  geoBusy=true;
+  var i=0;
+  (function next(){
+    if(i>=todo.length){ geoBusy=false; save("clients"); if(done) done(); return; }
+    var c=todo[i++], addr=c.address;
+    fetch("https://nominatim.openstreetmap.org/search?format=json&limit=1&q="+encodeURIComponent(addr), {headers:{"Accept-Language":"it"}})
+      .then(function(r){ return r.json(); })
+      .then(function(a){ var cc=client(c.id); if(cc && cc.address===addr) cc.geo = (a&&a[0]) ? {addr:addr, lat:+(+a[0].lat).toFixed(6), lng:+(+a[0].lon).toFixed(6)} : {addr:addr, lat:null, lng:null}; })
+      .catch(function(){})
+      .then(function(){ setTimeout(next, 1100); });
+  })();
+}
+function urgency(cid){
+  var e=nextEvent(cid); if(!e) return null;
+  var dd=Math.round((parseYmd(e.date).getTime()-parseYmd(ymd(new Date())).getTime())/86400000);
+  return dd===0 ? "#e8731a" : dd<=2 ? "#d9b310" : "#2f9a5b";
+}
+function renderMap(){
+  $title.textContent="Mappa";
+  if(lmap){ try{ lmap.remove(); }catch(e){} lmap=null; }
+  $main.innerHTML='<div id="map" style="height:calc(100vh - 230px);min-height:320px;border-radius:16px;overflow:hidden;border:1px solid var(--line);background:#e8e4da"></div>'+
+    '<div class="actions"><button class="btn ghost" id="meBtn" type="button" style="flex:1">'+ICON_PIN+'Dove sono io</button></div><p id="mapMsg" style="color:var(--muted);font-size:13px;margin:8px 2px 0"></p>';
+  var msg=document.getElementById("mapMsg");
+  if(!window.L){ msg.textContent="Per vedere la mappa serve la connessione a internet."; return; }
+  lmap=L.map("map",{zoomControl:true}).setView([41.9,12.5],6);
+  L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19, attribution:'&copy; OpenStreetMap'}).addTo(lmap);
+  var pts=[], senza=0;
+  state.clients.forEach(function(c){
+    var p=clientLatLng(c);
+    if(!p){ if(c.address || c.pos) senza++; return; }
+    var col=urgency(c.id)||"#6b736f";
+    var m=L.circleMarker([p.lat,p.lng],{radius:11, color:"#fff", weight:3, fillColor:col, fillOpacity:1}).addTo(lmap);
+    var e=nextEvent(c.id);
+    m.bindPopup('<b style="font-size:15px">'+esc(c.name)+'</b>'+(c.address?'<br>'+esc(c.address):'')+(e?'<br><span style="color:'+col+';font-weight:700">'+esc(fmtShort(e.date))+(e.time?' '+esc(e.time):'')+'</span>':'')+
+      '<br><a href="'+esc(mapsNav(clientLatLng(c)))+'" target="_blank" rel="noopener">Naviga</a> · <a href="#" data-open="'+c.id+'">Apri scheda</a>');
+    pts.push([p.lat,p.lng]);
+  });
+  if(pts.length) lmap.fitBounds(pts,{padding:[30,30], maxZoom:15});
+  var noAddr=state.clients.filter(function(c){ return !c.address && !(c.pos && c.pos.lat!=null); }).length;
+  msg.textContent = pts.length+" clienti sulla mappa"+(noAddr?" · "+noAddr+" senza indirizzo":"")+(senza?" · "+senza+" indirizzi non trovati":"");
+  if(state.clients.some(function(c){ return c.address && !(c.pos && c.pos.lat!=null) && !(c.geo && c.geo.addr===c.address); })){
+    msg.textContent="Cerco gli indirizzi sulla mappa…";
+    geocodeMissing(function(){ if(view.tab==="map") renderMap(); });
+  }
+  document.getElementById("meBtn").onclick=function(){
+    if(!navigator.geolocation){ msg.textContent="Posizione non disponibile."; return; }
+    msg.textContent="Cerco la tua posizione…";
+    navigator.geolocation.getCurrentPosition(function(pos){
+      if(!lmap) return;
+      var ll=[pos.coords.latitude,pos.coords.longitude];
+      L.circleMarker(ll,{radius:9,color:"#fff",weight:3,fillColor:"#2b6cd4",fillOpacity:1}).addTo(lmap).bindPopup("Sei qui");
+      lmap.setView(ll,13); msg.textContent="";
+    }, function(){ msg.textContent="Non riesco a leggere la posizione: controlla che il GPS sia acceso e che Chrome abbia il permesso."; }, {enableHighAccuracy:true, timeout:12000});
+  };
+  setTimeout(function(){ if(lmap) lmap.invalidateSize(); }, 200);
+}
+$main.addEventListener("click", function(ev){ var a=ev.target.closest('a[data-open]'); if(a){ ev.preventDefault(); view.tab="clients"; view.clientId=a.dataset.open; render(); window.scrollTo(0,0); } }, true);
+
+/* --- primo avvio: nome + password --- */
+function setupScreen(){
+  unlocked=false;
+  showLock('<h2>Benvenuto!</h2><p>Scrivi il tuo nome (comparirà nel PDF della spesa e nei messaggi) e crea una password di soli numeri.</p><form id="sf">'+
+    '<input name="n" placeholder="Nome e cognome" autocomplete="name" value="'+esc(ownerName)+'">'+
+    '<input type="password" inputmode="numeric" pattern="[0-9]*" name="a" placeholder="Nuova password" autocomplete="new-password">'+
+    '<input type="password" inputmode="numeric" pattern="[0-9]*" name="b" placeholder="Ripeti la password" autocomplete="new-password">'+
+    '<div class="err" id="serr"></div><button class="btn">Inizia</button></form>'+
+    '<p style="margin-top:14px;font-size:13px">Hai un file di copia? Dopo l\'avvio lo importi da ⚙️ Impostazioni.</p>');
+  document.getElementById("sf").onsubmit=function(e){
+    e.preventDefault(); var n=this.n.value.trim(), a=this.a.value, b=this.b.value, err=document.getElementById("serr");
+    if(!n){ err.textContent="Scrivi il tuo nome"; return; }
+    if(a.length<4){ err.textContent="La password deve avere almeno 4 numeri"; return; }
+    if(a!==b){ err.textContent="Le due password non sono uguali"; return; }
+    setOwnerName(n);
+    var salt=newSalt();
+    hashPw(a, salt).then(function(h){ pw={pwHash:h, salt:salt}; cachePw(); unlock(); render(); toast("Benvenuto, "+n+"!"); });
+  };
+}
+function resetAll(){
+  try{ [LS, LS_PW, LS_NAME, "agendaClienti.tpl"].forEach(function(k){ localStorage.removeItem(k); }); }catch(e){}
+  try{ indexedDB.deleteDatabase("agendaBlobs"); }catch(e){}
+  setTimeout(function(){ location.reload(); }, 400);
+}
+function forgotScreen(){
+  showLock('<h2>Password dimenticata</h2><p>La password non si può recuperare. Puoi solo azzerare l\'app: <b>verranno cancellati tutti i dati</b> su questo telefono. Se hai un file di copia, dopo potrai reimportarlo.</p>'+
+    '<form id="rf"><input name="c" placeholder="Scrivi CANCELLA per confermare" autocomplete="off" style="font-size:15px"><div class="err" id="rerr"></div><button class="btn" style="background:var(--warn)">Azzera l\'app</button></form>'+
+    '<button type="button" id="rback" style="margin-top:14px;font-size:14px;color:var(--accent);font-weight:600">Torna indietro</button>');
+  document.getElementById("rback").onclick=lockScreen;
+  document.getElementById("rf").onsubmit=function(e){ e.preventDefault(); if(this.c.value.trim().toUpperCase()!=="CANCELLA"){ document.getElementById("rerr").textContent="Scrivi CANCELLA per confermare"; return; } resetAll(); };
+}
+
+/* --- copia di sicurezza --- */
+function importData(file, msg){
+  var rd=new FileReader();
+  rd.onload=function(){
+    var d=null; try{ d=JSON.parse(rd.result); }catch(e){}
+    if(!d || d.app!=="agenda-clienti" || !Array.isArray(d.clients)){ msg.textContent="Questo file non è una copia dell'agenda."; return; }
+    var nc=d.clients.length, ne=(d.events||[]).length;
+    confirmSheet("Importare "+nc+" clienti e "+ne+" appuntamenti? I dati attuali verranno sostituiti.","Importa",function(){
+      localAssets.list().then(function(r){ var have={}; (r.assets||[]).forEach(function(a){ have[a.id]=1; }); return have; }, function(){ return {}; }).then(function(have){
+        state.clients=d.clients.map(function(c){ c.photos=(c.photos||[]).filter(function(p){return have[p.id];}); c.files=(c.files||[]).filter(function(f){return have[f.id];}); return c; });
+        state.events=Array.isArray(d.events)?d.events:[];
+        state.shopping=Array.isArray(d.shopping)?d.shopping:[];
+        if(d.tpl){ tpl=normTpl(d.tpl); tpl.list.forEach(function(t){ if(ownerName) t.text=t.text; }); cacheTpl(); }
+        if(d.name && !ownerName) setOwnerName(d.name);
+        save("clients"); render(); toast("Dati importati");
+      });
+    });
+  };
+  rd.onerror=function(){ msg.textContent="Non riesco a leggere il file."; };
+  rd.readAsText(file);
+}
+function settingsSheet(){
+  openSheet('<h2>Impostazioni</h2>'+
+    '<div class="section" style="margin-top:0">Il tuo nome</div>'+
+    '<div class="addrow"><input id="nmIn" value="'+esc(ownerName)+'" placeholder="Nome e cognome"><button type="button" id="nmSave" aria-label="Salva">'+ICON_OK.replace('width="16" height="16"','width="20" height="20"')+'</button></div>'+
+    '<p style="color:var(--muted);font-size:13px;margin:-4px 2px 4px">Compare nel PDF ("Lista '+esc(ownerName||"…")+'") e nei messaggi al posto di {firma}.</p>'+
+    '<div class="section">Cambia password</div><form>'+
+    '<label class="field"><span>Password attuale</span><input type="password" inputmode="numeric" pattern="[0-9]*" name="old" autocomplete="current-password"></label>'+
+    '<label class="field"><span>Nuova password</span><input type="password" inputmode="numeric" pattern="[0-9]*" name="a" autocomplete="new-password"></label>'+
+    '<label class="field"><span>Ripeti la nuova password</span><input type="password" inputmode="numeric" pattern="[0-9]*" name="b" autocomplete="new-password"></label>'+
+    '<p id="cerr" style="color:var(--warn);font-size:14px;margin:-4px 0 8px"></p>'+
+    '<div class="actions"><button class="btn full">Cambia password</button></div></form>'+
+    '<div class="section">Messaggi ai clienti</div><button type="button" class="btn ghost full" id="tplMan">Gestisci messaggi ('+tpl.list.length+')</button>'+
+    '<div class="section">Copia di sicurezza</div>'+
+    '<div class="actions" style="margin-top:0"><button type="button" class="btn ghost" id="expData" style="flex:1">Esporta</button><div class="btn ghost fbtn" style="flex:1">Importa<input type="file" accept=".json,application/json" id="impIn"></div></div>'+
+    '<p id="expMsg" style="color:var(--muted);font-size:13px;margin:8px 0 0">I dati sono solo su questo telefono: fai una copia ogni tanto e salvala (es. su Google Drive o mandala a te stesso). Le foto e i file non sono inclusi nella copia.</p>'+
+    '<div class="section">Sicurezza</div><button type="button" class="btn ghost full" id="lockNow">Blocca adesso</button>'+
+    '<p style="color:var(--muted);font-size:13px;margin:10px 0 0">L\'app si blocca da sola se resta chiusa per più di 5 minuti.</p>'+
+    '<div class="actions" style="margin-top:22px"><button type="button" class="btn ghost full" data-close>Chiudi</button></div>',
+  function(d){
+    var err=document.getElementById("cerr");
+    if(d.a.length<4){ err.textContent="La nuova password deve avere almeno 4 numeri"; return false; }
+    if(d.a!==d.b){ err.textContent="Le due nuove password non sono uguali"; return false; }
+    hashPw(d.old, pw.salt).then(function(h){
+      if(h!==pw.pwHash){ err.textContent="La password attuale è sbagliata"; return; }
+      var salt=newSalt();
+      return hashPw(d.a, salt).then(function(nh){ pw={pwHash:nh, salt:salt}; cachePw(); closeSheet(); toast("Password cambiata"); });
+    });
+    return false;
+  });
+  document.getElementById("nmSave").onclick=function(){ var n=document.getElementById("nmIn").value.trim(); if(!n){ toast("Scrivi il nome"); return; } setOwnerName(n); toast("Nome salvato"); settingsSheet(); };
+  document.getElementById("lockNow").onclick=function(){ closeSheet(); lockScreen(); };
+  document.getElementById("tplMan").onclick=function(){ tplListSheet(); };
+  document.getElementById("expData").onclick=function(){ exportData(document.getElementById("expMsg")); };
+  document.getElementById("impIn").addEventListener("change", function(){ var f=this.files&&this.files[0]; if(f) importData(f, document.getElementById("expMsg")); });
+}
+/* ======== fine versione indipendente ======== */
+
+document.getElementById("gear").onclick=settingsSheet;
+lockDecide();
+
+render();
+startSync();
+if("serviceWorker" in navigator){ window.addEventListener("load", function(){ navigator.serviceWorker.register("sw.js").catch(function(){}); }); }
+})();
+</script>
+</body>
+</html>
